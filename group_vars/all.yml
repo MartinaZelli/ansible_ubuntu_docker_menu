@@ -1,8 +1,20 @@
 progetto_docker: "progetto_menu"
 destinazione: "/opt"
 package_update: true
+
+# Pacchetti APT nativi per Ubuntu 24.04 LTS necessari a far girare Docker e Ansible Docker Modules
 project_packages:
   - git
   - docker.io
-  - docker-compose-v2
   - python3-pip
+  - python3-docker
+  - python3-setuptools
+
+# Credenziali di connessione al database MySQL che condivideremo tra i nodi
+db_config:
+  host: "192.168.1.73"  # IP statico della VM menu-db
+  port: 3306
+  name: "menu_progetto"
+  user: "menu"
+  pass: "menu"
+  root_pass: "rootpassword"

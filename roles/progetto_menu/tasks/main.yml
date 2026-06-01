@@ -1,8 +1,5 @@
 ---
-- name: "Includi task del sistema"
+# All'avvio del ruolo comune, eseguiamo prima di tutto l'inizializzazione del sistema
+- name: "Includi i task di inizializzazione sistema"
   ansible.builtin.include_tasks:
     file: sistema.yml
-
-- name: "Includi task del progetto"
-  ansible.builtin.include_tasks:
-    file: progetto.yml

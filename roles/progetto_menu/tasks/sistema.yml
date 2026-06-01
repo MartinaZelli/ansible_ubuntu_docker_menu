@@ -1,12 +1,18 @@
 ---
-- name: sistema | Aggiorna cache dei pacchetti e sistema operativo
+- name: sistema | Aggiorna la cache dei pacchetti APT
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
   become: true
 
-- name: sistema | Installa pacchetti richiesti su Ubuntu
+- name: sistema | Installa i pacchetti richiesti per Docker e Git
   ansible.builtin.apt:
     name: "{{ project_packages }}"
     state: "{{ 'latest' if package_update | bool else 'present' }}"
   become: true
+
+- name: sistema | Assicura che il servizio Docker sia avviato e abilitato al boot
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true

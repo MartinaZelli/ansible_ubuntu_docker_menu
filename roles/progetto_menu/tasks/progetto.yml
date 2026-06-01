@@ -1,33 +1,38 @@
-- name: progetto | Assicura che il servizio sia avviato e abilitato
-  ansible.builtin.systemd:
-    name: docker
-    state: started
-    enabled: true
-
 - name: progetto | Crea directory di destinazione
   ansible.builtin.file:
     path: "{{ destinazione }}/{{ progetto_docker }}"
     state: directory
     mode: '0755'
 
-- name: progetto | Scarica codice Git
+- name: progetto | Scarica codice Git dal nuovo repository v2.0
   ansible.builtin.git:
-    repo: "https://github.com/MartinaZelli/menu.git"
+    repo: "https://github.com/MartinaZelli/menu_v2.0.git"
     dest: "{{ destinazione }}/{{ progetto_docker }}"
     version: "main"
     force: true
   become: true
   notify: "Riavvia Docker"
 
-- name: progetto | Correggi i permessi della cartella del progetto
-  ansible.builtin.file:
-    path: "{{ destinazione }}/{{ progetto_docker }}"
-    owner: ubuntu
-    group: ubuntu
-    recurse: true
+# Generiamo un file .env direttamente nella cartella clonata.
+# L'applicazione FastAPI leggerà queste impostazioni puntando al DB della VM remota!
+- name: progetto | Crea il file .env di configurazione per il database remoto
+  ansible.builtin.copy:
+    dest: "{{ destinazione }}/{{ progetto_docker }}/.env"
+    content: |
+      DB_HOST={{ db_config.host }}
+      DB_PORT={{ db_config.port }}
+      DB_NAME={{ db_config.name }}
+      DB_USER={{ db_config.user }}
+      DB_PASSWORD={{ db_config.pass }}
+    mode: '0600'
+  become: true
 
-- name: progetto | Controllo avvio del servizio Docker Compose
+# Avviamo SOLO il servizio 'app' del docker-compose.
+# Il servizio 'db' descritto nel compose verrà ignorato sulla macchina dell'App!
+- name: progetto | Avvia esclusivamente il servizio applicativo via Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ destinazione }}/{{ progetto_docker }}"
+    services:
+      - app
     state: restarted
   become: true

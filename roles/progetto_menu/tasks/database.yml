@@ -1,0 +1,19 @@
+---
+# Questo task gira solo su menu-db e avvia MySQL senza bisogno di file locali o Git
+- name: database | Avvia il container MySQL ufficiale in modo isolato
+  community.docker.docker_container:
+    name: mysql_db
+    image: mysql:8.0
+    state: started
+    restart_policy: always
+    published_ports:
+      - "3306:3306"
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ db_config.root_pass }}"
+      MYSQL_DATABASE: "{{ db_config.name }}"
+      MYSQL_USER: "{{ db_config.user }}"
+      MYSQL_PASSWORD: "{{ db_config.pass }}"
+    volumes:
+      # Sostituisci in futuro questo volume locale con il tuo Network Storage!
+      - db_data:/var/lib/mysql
+  become: true
