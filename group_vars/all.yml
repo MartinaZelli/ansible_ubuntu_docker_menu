@@ -6,6 +6,7 @@ package_update: true
 project_packages:
   - git
   - docker.io
+  - docker-compose-v2
   - python3-pip
   - python3-docker
   - python3-setuptools
