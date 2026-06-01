@@ -1,7 +1,6 @@
 ---
-- name: Servizi Python
-  hosts: localhost
-  connection: local
+- name: Servizi Python sulle VM Remote
+  hosts: all
   become: true
   roles:
     - progetto_menu

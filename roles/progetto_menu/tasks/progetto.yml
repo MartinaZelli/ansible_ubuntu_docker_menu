@@ -19,6 +19,13 @@
   become: true
   notify: "Riavvia Docker"
 
+- name: progetto | Correggi i permessi della cartella del progetto
+  ansible.builtin.file:
+    path: "{{ destinazione }}/{{ progetto_docker }}"
+    owner: ubuntu
+    group: ubuntu
+    recurse: yes
+
 - name: progetto | Controllo avvio del servizio Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ destinazione }}/{{ progetto_docker }}"

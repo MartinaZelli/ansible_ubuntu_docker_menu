@@ -1,12 +1,12 @@
 ---
-- name: sistema | Aggiorna cache dei pacchetti
-  community.general.pacman:
+- name: sistema | Aggiorna cache dei pacchetti e sistema operativo
+  ansible.builtin.apt:
     update_cache: true
+    cache_valid_time: 3600
   become: true
-  changed_when: false
 
-- name: sistema | Installa pacchetti richiesti
-  community.general.pacman:
+- name: sistema | Installa pacchetti richiesti su Ubuntu
+  ansible.builtin.apt:
     name: "{{ project_packages }}"
     state: "{{ 'latest' if package_update | bool else 'present' }}"
   become: true

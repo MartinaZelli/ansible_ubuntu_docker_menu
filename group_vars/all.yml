@@ -1,10 +1,8 @@
 progetto_docker: "progetto_menu"
 destinazione: "/opt"
-package_update: false
+package_update: true
 project_packages:
   - git
-  - docker
-  - docker-compose
-  - python-pip
-  - python-docker
-  - python-setuptools
+  - docker.io
+  - docker-compose-v2
+  - python3-pip
