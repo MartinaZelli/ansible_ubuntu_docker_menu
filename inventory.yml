@@ -1,9 +1,13 @@
 ﻿all:
-  hosts:
-    vm-0:
-      ansible_host: 192.168.1.72
-    vm-1:
-      ansible_host: 192.168.1.73
+  children:
+    app_servers:
+      hosts:
+        menu-app:
+          ansible_host: 192.168.1.72
+    db_servers:
+      hosts:
+        menu-db:
+          ansible_host: 192.168.1.73
   vars:
     ansible_user: ubuntu
     ansible_ssh_private_key_file: ~/.ssh/id_archvm
