@@ -24,9 +24,11 @@
       ansible.builtin.include_tasks:
         file: roles/progetto_menu/tasks/progetto.yml
 
+  # Includendo l'handler direttamente all'interno di questo Play,
+  # risolviamo l'errore del handler non trovato durante il task Git.
   handlers:
-   - name: Riavvia Docker
-     ansible.builtin.systemd:
-       name: docker
-       state: restarted
-     become: true
+    - name: Riavvia Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+      become: true
