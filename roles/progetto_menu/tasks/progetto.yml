@@ -24,7 +24,7 @@
     path: "{{ destinazione }}/{{ progetto_docker }}"
     owner: ubuntu
     group: ubuntu
-    recurse: yes
+    recurse: true
 
 - name: progetto | Controllo avvio del servizio Docker Compose
   community.docker.docker_compose_v2:
