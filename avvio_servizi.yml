@@ -23,3 +23,10 @@
     - name: "Esegui i task dedicati all'applicazione"
       ansible.builtin.include_tasks:
         file: roles/progetto_menu/tasks/progetto.yml
+
+  handlers:
+   - name: Riavvia Docker
+     ansible.builtin.systemd:
+       name: docker
+       state: restarted
+     become: true
