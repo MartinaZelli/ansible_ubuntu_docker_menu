@@ -1,0 +1,26 @@
+- name: progetto | Assicura che il servizio sia avviato e abilitato
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: progetto | Crea directory di destinazione
+  ansible.builtin.file:
+    path: "{{ destinazione }}/{{ progetto_docker }}"
+    state: directory
+    mode: '0755'
+
+- name: progetto | Scarica codice Git
+  ansible.builtin.git:
+    repo: "https://github.com/MartinaZelli/menu.git"
+    dest: "{{ destinazione }}/{{ progetto_docker }}"
+    version: "main"
+    force: true
+  become: true
+  notify: "Riavvia Docker"
+
+- name: progetto | Controllo avvio del servizio Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ destinazione }}/{{ progetto_docker }}"
+    state: restarted
+  become: true

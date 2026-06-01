@@ -1,0 +1,12 @@
+---
+- name: sistema | Aggiorna cache dei pacchetti
+  community.general.pacman:
+    update_cache: true
+  become: true
+  changed_when: false
+
+- name: sistema | Installa pacchetti richiesti
+  community.general.pacman:
+    name: "{{ project_packages }}"
+    state: "{{ 'latest' if package_update | bool else 'present' }}"
+  become: true

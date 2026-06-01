@@ -1,0 +1,8 @@
+---
+- name: Riavvia Docker
+  community.docker.docker_compose_v2:
+    project_src: "{{ destinazione }}/{{ progetto_docker }}"
+    state: present
+    build: always
+    remove_orphans: true
+  become: true

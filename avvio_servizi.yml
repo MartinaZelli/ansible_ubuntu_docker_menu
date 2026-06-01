@@ -1,0 +1,7 @@
+---
+- name: Servizi Python
+  hosts: localhost
+  connection: local
+  become: true
+  roles:
+    - progetto_menu
