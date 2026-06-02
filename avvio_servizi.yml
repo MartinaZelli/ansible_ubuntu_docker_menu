@@ -23,6 +23,12 @@
         state: absent
       changed_when: false
 
+    - name: Rimuovi la vecchia chiave SSH per la VM Load Balancer
+      ansible.builtin.known_hosts:
+        name: "192.168.1.75"
+        state: absent
+      changed_when: false
+
 # PLAY 1: Configurazione comune del sistema su TUTTI i server (App e DB)
 - name: "Inizializzazione Comune e Installazione Docker"
   hosts: all
@@ -56,3 +62,12 @@
         name: docker
         state: restarted
       become: true
+
+# PLAY 4: Configurazione specifica del Load Balancer sul server LB
+- name: "Deploy e Configurazione del Load Balancer HAProxy"
+  hosts: lb_servers
+  become: true
+  tasks:
+    - name: "Esegui i task dedicati al bilanciatore"
+      ansible.builtin.include_tasks:
+        file: roles/progetto_menu/tasks/load_balancer.yml

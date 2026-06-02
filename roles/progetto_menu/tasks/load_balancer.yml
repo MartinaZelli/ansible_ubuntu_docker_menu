@@ -1,0 +1,37 @@
+---
+
+# 1. Installazione del pacchetto HAProxy ufficiale
+- name: "Load Balancer : Installa HAProxy"
+  ansible.builtin.apt:
+    name: haproxy
+    state: present
+    update_cache: true
+  become: true
+
+# 2. Apertura del firewall UFW per il traffico web e la dashboard
+- name: "Load Balancer : Consenti il traffico sulle porte HTTP e Stats"
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  become: true
+  with_items:
+    - "{{ lb_config.frontend_port }}"
+    - "{{ lb_config.stats_port }}"
+
+# 3. Generazione del file di configurazione partendo dal template Jinja2
+- name: "Load Balancer : Configura HAProxy tramite Template Jinja2"
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: '0644'
+  become: true
+  register: progetto_menu_haproxy_config
+
+# 4. Riavvio del servizio per applicare la nuova configurazione (solo se il file è cambiato)
+- name: "Load Balancer : Assicura che HAProxy sia avviato e ricaricato"
+  ansible.builtin.systemd:
+    name: haproxy
+    state: "{{ 'restarted' if progetto_menu_haproxy_config.changed else 'started' }}"
+    enabled: true
+  become: true

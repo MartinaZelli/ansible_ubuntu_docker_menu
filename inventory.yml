@@ -10,6 +10,10 @@
       hosts:
         menu-db:
           ansible_host: 192.168.1.73
+    lb_servers:          
+      hosts:
+        menu-lb:
+          ansible_host: 192.168.1.75
   vars:
     ansible_user: ubuntu
     ansible_ssh_private_key_file: ~/.ssh/id_archvm

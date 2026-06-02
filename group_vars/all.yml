@@ -22,3 +22,9 @@ db_config:
   user: "menu"
   pass: "menu"
   root_pass: "rootpassword"
+
+# Configurazione specifica per il Load Balancer HAProxy
+lb_config:
+  frontend_port: 80         # La porta su cui risponderà il servizio web finale
+  stats_port: 8080          # La porta per vedere la tua dashboard dei nodi
+  stats_uri: "/stats"       # Il percorso della pagina web delle statistiche
