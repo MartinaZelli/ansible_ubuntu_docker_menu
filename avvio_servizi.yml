@@ -1,4 +1,20 @@
 ---
+# PLAY 0: Cancellare le vecchie chiavi SSH per evitare problemi di connessione
+- name: "Preparazione SSH | Pulisci le vecchie impronte digitali"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Rimuovi la vecchia chiave SSH per la VM App
+      ansible.builtin.known_hosts:
+        name: "192.168.1.72"
+        state: absent
+
+    - name: Rimuovi la vecchia chiave SSH per la VM DB
+      ansible.builtin.known_hosts:
+        name: "192.168.1.73"
+        state: absent
+
 # PLAY 1: Configurazione comune del sistema su TUTTI i server (App e DB)
 - name: "Inizializzazione Comune e Installazione Docker"
   hosts: all

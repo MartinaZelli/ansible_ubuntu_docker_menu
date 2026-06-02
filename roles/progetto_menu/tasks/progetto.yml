@@ -35,7 +35,7 @@
 
 - name: progetto | Avvia l'applicazione e il popolamento usando la CLI nativa
   ansible.builtin.command:
-    cmd: "docker compose up -d app popola-db"
+    cmd: "docker compose up -d --force-recreate --build app popola-db"
     chdir: "{{ destinazione }}/{{ progetto_docker }}"
   become: true
 
