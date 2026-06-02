@@ -10,7 +10,7 @@
     state: directory
     mode: '0755'
 
-- name: progetto | Scarica codice Git dal nuovo repository v2.0
+- name: progetto | Scarica codice Git repository v2.0
   ansible.builtin.git:
     repo: "https://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@github.com/MartinaZelli/menu_v2.0.git"
     dest: "{{ destinazione }}/{{ progetto_docker }}"
