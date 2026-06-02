@@ -4,6 +4,8 @@
       hosts:
         menu-app:
           ansible_host: 192.168.1.72
+        menu-app-2:
+          ansible_host: 192.168.1.74
     db_servers:
       hosts:
         menu-db:

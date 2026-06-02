@@ -1,13 +1,14 @@
 ---
 
-# 1. SBLOCCO DEL FIREWALL (Inserito PRIMA)
-- name: database | Consenti le connessioni MySQL in ingresso dalla VM dell'App
+# 1. SBLOCCO DEL FIREWALL AUTOMATICO PER TUTTE LE APP
+- name: database | Consenti le connessioni MySQL in ingresso da tutti i server applicativi
   community.general.ufw:
     rule: allow
-    from_ip: "{{ hostvars['menu-app']['ansible_host'] }}"
+    from_ip: "{{ hostvars[item]['ansible_host'] }}"
     port: '3306'
     proto: tcp
   become: true
+  with_items: "{{ groups['app_servers'] }}"  
 
 # Questo task gira solo su menu-db e avvia MySQL senza bisogno di file locali o Git
 - name: database | Avvia il container MySQL ufficiale in modo isolato

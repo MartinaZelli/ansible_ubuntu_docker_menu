@@ -11,6 +11,12 @@
         state: absent
       changed_when: false
 
+    - name: Rimuovi la vecchia chiave SSH per la VM App-2
+      ansible.builtin.known_hosts:
+        name: "192.168.1.74"
+        state: absent
+      changed_when: false
+
     - name: Rimuovi la vecchia chiave SSH per la VM DB
       ansible.builtin.known_hosts:
         name: "192.168.1.73"
