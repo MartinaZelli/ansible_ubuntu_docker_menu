@@ -9,11 +9,13 @@
       ansible.builtin.known_hosts:
         name: "192.168.1.72"
         state: absent
+      changed_when: false
 
     - name: Rimuovi la vecchia chiave SSH per la VM DB
       ansible.builtin.known_hosts:
         name: "192.168.1.73"
         state: absent
+      changed_when: false
 
 # PLAY 1: Configurazione comune del sistema su TUTTI i server (App e DB)
 - name: "Inizializzazione Comune e Installazione Docker"
