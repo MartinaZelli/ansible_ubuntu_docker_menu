@@ -4,21 +4,16 @@
     state: started
     enabled: true
 
-# SICUREZZA & ISOLAMENTO: Il firewall accetta traffico HTTP solo dal Load Balancer
-
-- name: progetto | Consenti il traffico sulla porta 8000 solo dall'IP del Load Balancer
-  community.general.ufw:
-    rule: allow
-    from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
-    port: '8000'
-    proto: tcp
+- name: progetto | Configura Docker per rispettare UFW (no iptables)
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "iptables": false
+      }
+    mode: '0644'
   become: true
-
-- name: progetto | Cambia la politica di default per negare il traffico non esplicitamente consentito
-  community.general.ufw:
-    direction: incoming
-    policy: deny
-  become: true
+  notify: "Riavvia Docker"
 
 - name: progetto | Crea directory di destinazione
   ansible.builtin.file:
@@ -46,9 +41,35 @@
       DB_NAME={{ db_config.name }}
       DB_USER={{ db_config.user }}
       DB_PASSWORD={{ db_config.pass }}
+      HOST_IP={{ ansible_host }}
     mode: '0644'
   become: true
 
+- name: progetto | Firewall - Consenti SSH (Porta 22)
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  become: true
+
+- name: progetto | Firewall - Consenti porta 8000 SOLO da Load Balancer
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
+    port: '8000'
+    proto: tcp
+  become: true
+
+- name: progetto | Firewall - Nega porta 8000 a chiunque altro
+  community.general.ufw:
+    rule: deny
+    port: '8000'
+    proto: tcp
+  become: true
+
+- name: progetto | Firewall - Abilita UFW
+  community.general.ufw:
+    state: enabled
+  become: true
 
 - name: "Progetto : Avvia e ricostruisci l'applicazione usando il modulo nativo Docker"
   community.docker.docker_compose_v2:
@@ -60,6 +81,8 @@
     build: "{{ 'always' if modalita_developer else 'auto' }}"     # <-- Sostituisce il flag "--build" se modalita_developer è true,
     recreate: "{{ 'always' if modalita_developer else 'auto' }}"  # <-- Sostituisce il flag "--force-recreate" se modalita_developer è true,
   become: true
+  environment:
+    HOST_IP: "{{ ansible_host }}"
   register: progetto_menu_docker_compose_output
 
 - name: progetto | Mostra i log dettagliati di Docker Compose
