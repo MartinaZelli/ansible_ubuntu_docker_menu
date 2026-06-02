@@ -1,3 +1,9 @@
+- name: progetto | Assicura che il servizio sia avviato e abilitato
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
 - name: progetto | Crea directory di destinazione
   ansible.builtin.file:
     path: "{{ destinazione }}/{{ progetto_docker }}"
@@ -24,7 +30,7 @@
       DB_NAME={{ db_config.name }}
       DB_USER={{ db_config.user }}
       DB_PASSWORD={{ db_config.pass }}
-    mode: '0600'
+    mode: '0644'
   become: true
 
 # Avviamo SOLO il servizio 'app' del docker-compose.
