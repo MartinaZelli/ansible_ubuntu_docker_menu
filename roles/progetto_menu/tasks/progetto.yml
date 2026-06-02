@@ -12,7 +12,7 @@
 
 - name: progetto | Scarica codice Git dal nuovo repository v2.0
   ansible.builtin.git:
-    repo: "https://github.com/MartinaZelli/menu_v2.0.git"
+    repo: "https://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@github.com/MartinaZelli/menu_v2.0.git"
     dest: "{{ destinazione }}/{{ progetto_docker }}"
     version: "main"
     force: true
@@ -33,10 +33,15 @@
     mode: '0644'
   become: true
 
-- name: progetto | Avvia l'applicazione e il popolamento usando la CLI nativa
-  ansible.builtin.command:
-    cmd: "docker compose up -d --force-recreate --build app popola-db"
-    chdir: "{{ destinazione }}/{{ progetto_docker }}"
+- name: progetto | Avvia e ricostruisci l'applicazione usando il modulo nativo Docker
+  community.docker.docker_compose_v2:
+    project_src: "{{ destinazione }}/{{ progetto_docker }}"
+    services:
+      - app
+      - popola-db
+    state: present
+    build: "{{ 'always' if modalita_developer else 'auto' }}"     # <-- Sostituisce il flag "--build" se modalita_developer è true,
+    recreate: "{{ 'always' if modalita_developer else 'auto' }}"  # <-- Sostituisce il flag "--force-recreate" se modalita_developer è true,
   become: true
 
 - name: progetto | Mostra i log dettagliati di Docker Compose

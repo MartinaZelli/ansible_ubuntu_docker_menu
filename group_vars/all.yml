@@ -1,6 +1,7 @@
 progetto_docker: "progetto_menu"
 destinazione: "/opt"
 package_update: true
+modalita_developer: true  # Lo metti a 'false' quando hai finito i test
 
 # Pacchetti APT nativi per Ubuntu 24.04 LTS necessari a far girare Docker e Ansible Docker Modules
 project_packages:
