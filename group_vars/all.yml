@@ -8,9 +8,11 @@ project_packages:
   - git
   - docker.io
   - docker-compose-v2
+  - docker-buildx
   - python3-pip
   - python3-docker
   - python3-setuptools
+
 
 # Credenziali di connessione al database MySQL che condivideremo tra i nodi
 db_config:

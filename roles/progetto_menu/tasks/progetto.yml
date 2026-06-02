@@ -33,7 +33,8 @@
     mode: '0644'
   become: true
 
-- name: progetto | Avvia e ricostruisci l'applicazione usando il modulo nativo Docker
+
+- name: "Progetto : Avvia e ricostruisci l'applicazione usando il modulo nativo Docker"
   community.docker.docker_compose_v2:
     project_src: "{{ destinazione }}/{{ progetto_docker }}"
     services:
@@ -43,7 +44,8 @@
     build: "{{ 'always' if modalita_developer else 'auto' }}"     # <-- Sostituisce il flag "--build" se modalita_developer è true,
     recreate: "{{ 'always' if modalita_developer else 'auto' }}"  # <-- Sostituisce il flag "--force-recreate" se modalita_developer è true,
   become: true
+  register: progetto_menu_docker_compose_output
 
 - name: progetto | Mostra i log dettagliati di Docker Compose
   ansible.builtin.debug:
-    var: docker_compose_output  # <--- Stampa a schermo tutto l'output verboso
+    var: progetto_menu_docker_compose_output
