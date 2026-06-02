@@ -33,12 +33,12 @@
     mode: '0644'
   become: true
 
-# Avviamo SOLO il servizio 'app' del docker-compose.
-# Il servizio 'db' descritto nel compose verrà ignorato sulla macchina dell'App!
-- name: progetto | Avvia esclusivamente il servizio applicativo via Docker Compose
-  community.docker.docker_compose_v2:
-    project_src: "{{ destinazione }}/{{ progetto_docker }}"
-    services:
-      - app
-    state: restarted
+- name: progetto | Avvia l'applicazione e il popolamento usando la CLI nativa
+  ansible.builtin.command:
+    cmd: "docker compose up -d app popola-db"
+    chdir: "{{ destinazione }}/{{ progetto_docker }}"
   become: true
+
+- name: progetto | Mostra i log dettagliati di Docker Compose
+  ansible.builtin.debug:
+    var: docker_compose_output  # <--- Stampa a schermo tutto l'output verboso
