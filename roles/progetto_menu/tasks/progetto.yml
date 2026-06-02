@@ -4,6 +4,22 @@
     state: started
     enabled: true
 
+# SICUREZZA & ISOLAMENTO: Il firewall accetta traffico HTTP solo dal Load Balancer
+
+- name: progetto | Consenti il traffico sulla porta 8000 solo dall'IP del Load Balancer
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
+    port: '8000'
+    proto: tcp
+  become: true
+
+- name: progetto | Cambia la politica di default per negare il traffico non esplicitamente consentito
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+  become: true
+
 - name: progetto | Crea directory di destinazione
   ansible.builtin.file:
     path: "{{ destinazione }}/{{ progetto_docker }}"

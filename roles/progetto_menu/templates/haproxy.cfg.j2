@@ -27,7 +27,7 @@ frontend main_frontend
 backend fastapi_backend
     mode http
     balance roundrobin
-    option httpchk GET /
+    option httpchk GET /index.html
 {% for server in groups['app_servers'] %}
     server {{ hostvars[server]['inventory_hostname'] }} {{ hostvars[server]['ansible_host'] }}:8000 check
 {% endfor %}
