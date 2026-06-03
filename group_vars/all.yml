@@ -1,10 +1,15 @@
 progetto_docker: "progetto_menu"
 destinazione: "/opt"
+modalita_developer: true
 package_update: true
-modalita_developer: true  # Lo metti a 'false' quando hai finito i test
+
+utility_sistema_comuni:
+  - curl
+  - htop
+  - ufw
 
 # Pacchetti APT nativi per Ubuntu 24.04 LTS necessari a far girare Docker e Ansible Docker Modules
-project_packages:
+pacchetti_app:
   - git
   - docker.io
   - docker-compose-v2
@@ -13,17 +18,18 @@ project_packages:
   - python3-docker
   - python3-setuptools
 
+pacchetti_db:
+  - docker.io
+  - python3-docker
 
-# Credenziali di connessione al database MySQL che condivideremo tra i nodi
 db_config:
-  host: "192.168.1.73"  # IP statico della VM menu-db
+  host: "192.168.1.73"
   port: 3306
   name: "menu_progetto"
   user: "menu"
   pass: "menu"
   root_pass: "rootpassword"
 
-# Configurazione specifica per il Load Balancer HAProxy
 lb_config:
   frontend_port: 80         # La porta su cui risponderà il servizio web finale
   stats_port: 8080          # La porta per vedere la tua dashboard dei nodi

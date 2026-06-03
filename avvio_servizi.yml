@@ -5,29 +5,12 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Rimuovi la vecchia chiave SSH per la VM App
+    - name: Rimuovi le vecchie chiavi SSH per tutti gli host dell'inventario
       ansible.builtin.known_hosts:
-        name: "192.168.1.72"
+        name: "{{ hostvars[item]['ansible_host'] }}"
         state: absent
       changed_when: false
-
-    - name: Rimuovi la vecchia chiave SSH per la VM App-2
-      ansible.builtin.known_hosts:
-        name: "192.168.1.74"
-        state: absent
-      changed_when: false
-
-    - name: Rimuovi la vecchia chiave SSH per la VM DB
-      ansible.builtin.known_hosts:
-        name: "192.168.1.73"
-        state: absent
-      changed_when: false
-
-    - name: Rimuovi la vecchia chiave SSH per la VM Load Balancer
-      ansible.builtin.known_hosts:
-        name: "192.168.1.75"
-        state: absent
-      changed_when: false
+      loop: "{{ groups['all'] }}"
 
 # PLAY 1: Configurazione comune del sistema su TUTTI i server (App e DB)
 - name: "Inizializzazione Comune e Installazione Docker"
@@ -53,15 +36,6 @@
     - name: "Esegui i task dedicati all'applicazione"
       ansible.builtin.include_tasks:
         file: roles/progetto_menu/tasks/progetto.yml
-
-  # Includendo l'handler direttamente all'interno di questo Play,
-  # risolviamo l'errore del handler non trovato durante il task Git.
-  handlers:
-    - name: Riavvia Docker
-      ansible.builtin.systemd:
-        name: docker
-        state: restarted
-      become: true
 
 # PLAY 4: Configurazione specifica del Load Balancer sul server LB
 - name: "Deploy e Configurazione del Load Balancer HAProxy"

@@ -1,12 +1,4 @@
 ---
-# All'avvio del ruolo comune, eseguiamo prima di tutto l'inizializzazione del sistema
 - name: "Includi i task di inizializzazione sistema"
   ansible.builtin.include_tasks:
     file: sistema.yml
-
-- name: Assicura che l'utente ubuntu sia nel gruppo docker
-  ansible.builtin.user:
-    name: ubuntu
-    groups: docker
-    append: true
-  become: true

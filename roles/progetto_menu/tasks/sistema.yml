@@ -7,12 +7,6 @@
 
 - name: sistema | Installa i pacchetti richiesti per Docker e Git
   ansible.builtin.apt:
-    name: "{{ project_packages }}"
+    name: "{{ utility_sistema_comuni }}"
     state: "{{ 'latest' if package_update | bool else 'present' }}"
   become: true
-
-- name: sistema | Assicura che il servizio Docker sia avviato e abilitato al boot
-  ansible.builtin.systemd:
-    name: docker
-    state: started
-    enabled: true

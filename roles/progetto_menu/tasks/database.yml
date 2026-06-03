@@ -1,6 +1,24 @@
 ---
+- name: database | Installa i pacchetti Docker minimi per il motore standalone
+  ansible.builtin.apt:
+    name: "{{ pacchetti_db }}"
+    state: "{{ 'latest' if package_update | bool else 'present' }}"
+  become: true
 
-# 1. SBLOCCO DEL FIREWALL AUTOMATICO PER TUTTE LE APP
+- name: Aggiungi ubuntu al gruppo docker
+  ansible.builtin.user:
+    name: ubuntu
+    groups: docker
+    append: true
+  become: true
+
+- name: database | Assicura che il servizio Docker sia avviato e abilitato al boot
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+
 - name: database | Consenti le connessioni MySQL in ingresso da tutti i server applicativi
   community.general.ufw:
     rule: allow
@@ -8,9 +26,8 @@
     port: '3306'
     proto: tcp
   become: true
-  with_items: "{{ groups['app_servers'] }}"
+  loop: "{{ groups['app_servers'] }}"
 
-# Questo task gira solo su menu-db e avvia MySQL senza bisogno di file locali o Git
 - name: database | Avvia il container MySQL ufficiale in modo isolato
   community.docker.docker_container:
     name: mysql_db

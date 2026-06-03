@@ -1,37 +1,34 @@
 ---
-
-# 1. Installazione del pacchetto HAProxy ufficiale
-- name: "Load Balancer : Installa HAProxy"
+# 1. Installazione del pacchetto HAProxy ufficiale nativo (senza Docker)
+- name: load_balancer | Installa HAProxy nativamente sul sistema
   ansible.builtin.apt:
     name: haproxy
     state: present
-    update_cache: true
   become: true
 
-# 2. Apertura del firewall UFW per il traffico web e la dashboard
-- name: "Load Balancer : Consenti il traffico sulle porte HTTP e Stats"
+# 2. Apertura del firewall UFW per il traffico pubblico (Porta 80 e Porta Dashboard)
+- name: load_balancer | Firewall - Consenti il traffico sulle porte HTTP e Stats
   community.general.ufw:
     rule: allow
     port: "{{ item }}"
     proto: tcp
   become: true
-  with_items:
+  loop:
     - "{{ lb_config.frontend_port }}"
     - "{{ lb_config.stats_port }}"
 
 # 3. Generazione del file di configurazione partendo dal template Jinja2
-- name: "Load Balancer : Configura HAProxy tramite Template Jinja2"
+- name: load_balancer | Configura HAProxy tramite Template Jinja2
   ansible.builtin.template:
     src: "{{ playbook_dir }}/roles/progetto_menu/templates/haproxy.cfg.j2"
     dest: /etc/haproxy/haproxy.cfg
     mode: '0644'
   become: true
-  register: progetto_menu_haproxy_config
+  notify: "Riavvia HAProxy"
 
-# 4. Riavvio del servizio per applicare la nuova configurazione (solo se il file è cambiato)
-- name: "Load Balancer : Assicura che HAProxy sia avviato e ricaricato"
+# 4. Assicura che il servizio sia abilitato al boot del sistema
+- name: load_balancer | Assicura che HAProxy sia abilitato al boot
   ansible.builtin.systemd:
     name: haproxy
-    state: "{{ 'restarted' if progetto_menu_haproxy_config.changed else 'started' }}"
     enabled: true
   become: true

@@ -1,25 +1,68 @@
-- name: progetto | Assicura che il servizio sia avviato e abilitato
+---
+# 1. INSTALLAZIONE DELLO STACK APPLICATIVO
+- name: progetto | Installa i pacchetti richiesti per Docker, Git e moduli Python
+  ansible.builtin.apt:
+    name: "{{ pacchetti_app }}"
+    state: "{{ 'latest' if package_update | bool else 'present' }}"
+  become: true
+
+- name: Aggiungi ubuntu al gruppo docker
+  ansible.builtin.user:
+    name: ubuntu
+    groups: docker
+    append: true
+  become: true
+
+- name: progetto | Assicura che il servizio Docker sia avviato e abilitato
   ansible.builtin.systemd:
     name: docker
     state: started
     enabled: true
-
-- name: progetto | Configura Docker per rispettare UFW (no iptables)
-  ansible.builtin.copy:
-    dest: /etc/docker/daemon.json
-    content: |
-      {
-        "iptables": false
-      }
-    mode: '0644'
   become: true
-  notify: "Riavvia Docker"
 
-- name: progetto | Crea directory di destinazione
+# 2. CONFIGURAZIONE DEL FIREWALL UFW (Esercizio di blindatura)
+- name: progetto | Firewall - Consenti SSH (Porta 22)
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  become: true
+
+- name: progetto | Firewall - Consenti porta 8000 SOLO dal server Load Balancer
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
+    port: '8000'
+    proto: tcp
+  become: true
+
+- name: progetto | Firewall - Imposta la policy di default in ingresso su DENY
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+  become: true
+
+- name: progetto | Firewall - Abilita UFW
+  community.general.ufw:
+    state: enabled
+  become: true
+
+# 3. CONTROLLO DI PRONTEZZA DEL DATABASE
+- name: progetto | Attendi che la porta del database sia aperta e responsiva via rete
+  ansible.builtin.wait_for:
+    host: "{{ db_config.host }}"
+    port: "{{ db_config.port }}"
+    state: started
+    delay: 3
+    timeout: 60
+    msg: "Il database su {{ db_config.host }} non è pronto dopo 60 secondi. Interrompo il deployment dell'app."
+
+# 4. DEPLOY E AVVIO DELL'APPLICAZIONE FASTAPI
+- name: progetto | Crea directory di destinazione del progetto
   ansible.builtin.file:
     path: "{{ destinazione }}/{{ progetto_docker }}"
     state: directory
     mode: '0755'
+  become: true
 
 - name: progetto | Scarica codice Git repository v2.0
   ansible.builtin.git:
@@ -28,10 +71,7 @@
     version: "main"
     force: true
   become: true
-  notify: "Riavvia Docker"
 
-# Generiamo un file .env direttamente nella cartella clonata.
-# L'applicazione FastAPI leggerà queste impostazioni puntando al DB della VM remota!
 - name: progetto | Crea il file .env di configurazione per il database remoto
   ansible.builtin.copy:
     dest: "{{ destinazione }}/{{ progetto_docker }}/.env"
@@ -45,46 +85,15 @@
     mode: '0644'
   become: true
 
-- name: progetto | Firewall - Consenti SSH (Porta 22)
-  community.general.ufw:
-    rule: allow
-    name: OpenSSH
-  become: true
-
-- name: progetto | Firewall - Consenti porta 8000 SOLO da Load Balancer
-  community.general.ufw:
-    rule: allow
-    from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
-    port: '8000'
-    proto: tcp
-  become: true
-
-- name: progetto | Firewall - Nega porta 8000 a chiunque altro
-  community.general.ufw:
-    rule: deny
-    port: '8000'
-    proto: tcp
-  become: true
-
-- name: progetto | Firewall - Abilita UFW
-  community.general.ufw:
-    state: enabled
-  become: true
-
-- name: "Progetto : Avvia e ricostruisci l'applicazione usando il modulo nativo Docker"
+- name: progetto | Avvia e ricostruisci l'applicazione usando il modulo nativo Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ destinazione }}/{{ progetto_docker }}"
     services:
       - app
       - popola-db
     state: present
-    build: "{{ 'always' if modalita_developer else 'auto' }}"     # <-- Sostituisce il flag "--build" se modalita_developer è true,
-    recreate: "{{ 'always' if modalita_developer else 'auto' }}"  # <-- Sostituisce il flag "--force-recreate" se modalita_developer è true,
+    build: "{{ 'always' if modalita_developer else 'auto' }}"
+    recreate: "{{ 'always' if modalita_developer else 'auto' }}"
   become: true
   environment:
     HOST_IP: "{{ ansible_host }}"
-  register: progetto_menu_docker_compose_output
-
-- name: progetto | Mostra i log dettagliati di Docker Compose
-  ansible.builtin.debug:
-    var: progetto_menu_docker_compose_output

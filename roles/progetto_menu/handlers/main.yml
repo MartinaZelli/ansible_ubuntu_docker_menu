@@ -1,8 +1,12 @@
 ---
 - name: Riavvia Docker
-  community.docker.docker_compose_v2:
-    project_src: "{{ destinazione }}/{{ progetto_docker }}"
-    state: present
-    build: always
-    remove_orphans: true
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  become: true
+
+- name: Riavvia HAProxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: restarted
   become: true
