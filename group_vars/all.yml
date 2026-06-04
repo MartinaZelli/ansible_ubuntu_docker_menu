@@ -1,6 +1,6 @@
 progetto_docker: "progetto_menu"
 destinazione: "/opt"
-modalita_developer: true
+modalita_developer: false
 package_update: true
 
 utility_sistema_comuni:

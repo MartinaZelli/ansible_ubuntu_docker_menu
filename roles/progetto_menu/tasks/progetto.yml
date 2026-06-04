@@ -12,13 +12,7 @@
     groups: docker
     append: true
   become: true
-
-- name: progetto | Assicura che il servizio Docker sia avviato e abilitato
-  ansible.builtin.systemd:
-    name: docker
-    state: started
-    enabled: true
-  become: true
+  notify: Riavvia Docker
 
 # 2. CONFIGURAZIONE DEL FIREWALL UFW (Esercizio di blindatura)
 - name: progetto | Firewall - Consenti SSH (Porta 22)
@@ -92,7 +86,7 @@
       - app
       - popola-db
     state: present
-    build: "{{ 'always' if modalita_developer else 'auto' }}"
+    build: "{{ 'always' if modalita_developer else 'policy' }}"
     recreate: "{{ 'always' if modalita_developer else 'auto' }}"
   become: true
   environment:

@@ -1,4 +1,19 @@
 ---
-- name: "Includi i task di inizializzazione sistema"
-  ansible.builtin.include_tasks:
-    file: sistema.yml
+# Inizializzazione sistema (sempre eseguita)
+- name: "Esegui setup base"
+  ansible.builtin.include_tasks: sistema.yml
+
+- name: "Esegui setup DB"
+  ansible.builtin.include_tasks: database.yml
+  when: inventory_hostname in groups['db_servers']
+  tags: db
+
+- name: "Esegui setup App"
+  ansible.builtin.include_tasks: progetto.yml
+  when: inventory_hostname in groups['app_servers']
+  tags: app
+
+- name: "Esegui setup Load Balancer"
+  ansible.builtin.include_tasks: load_balancer.yml
+  when: inventory_hostname in groups['lb_servers']
+  tags: lb

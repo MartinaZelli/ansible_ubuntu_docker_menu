@@ -12,36 +12,10 @@
       changed_when: false
       loop: "{{ groups['all'] }}"
 
-# PLAY 1: Configurazione comune del sistema su TUTTI i server (App e DB)
-- name: "Inizializzazione Comune e Installazione Docker"
+- name: "Configurazione Infrastruttura"
   hosts: all
   become: true
   roles:
     - progetto_menu
 
-# PLAY 2: Configurazione specifica del Database sul server DB
-- name: "Deploy del Database MySQL Isolato"
-  hosts: db_servers
-  become: true
-  tasks:
-    - name: "Esegui i task dedicati al database"
-      ansible.builtin.include_tasks:
-        file: roles/progetto_menu/tasks/database.yml
-
-# PLAY 3: Configurazione specifica dell'App sul server App
-- name: "Deploy dell'Applicazione FastAPI"
-  hosts: app_servers
-  become: true
-  tasks:
-    - name: "Esegui i task dedicati all'applicazione"
-      ansible.builtin.include_tasks:
-        file: roles/progetto_menu/tasks/progetto.yml
-
-# PLAY 4: Configurazione specifica del Load Balancer sul server LB
-- name: "Deploy e Configurazione del Load Balancer HAProxy"
-  hosts: lb_servers
-  become: true
-  tasks:
-    - name: "Esegui i task dedicati al bilanciatore"
-      ansible.builtin.include_tasks:
-        file: roles/progetto_menu/tasks/load_balancer.yml
+#
