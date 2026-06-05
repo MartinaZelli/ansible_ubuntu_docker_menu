@@ -2,6 +2,7 @@
 # Inizializzazione sistema (sempre eseguita)
 - name: "Esegui setup base"
   ansible.builtin.include_tasks: sistema.yml
+  tags: always
 
 - name: "Esegui setup DB"
   ansible.builtin.include_tasks: database.yml
