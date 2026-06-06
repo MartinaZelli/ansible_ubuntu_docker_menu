@@ -3,19 +3,18 @@
     app_servers:
       hosts:
         menu-app:
-          ansible_host: 192.168.1.72
+          ansible_host: "{{ ip.app1_ip }}"
         menu-app-2:
-          ansible_host: 192.168.1.74
+          ansible_host: "{{ ip.app2_ip }}"
     db_servers:
       hosts:
         menu-db:
-          ansible_host: 192.168.1.73
-    lb_servers:          
+          ansible_host: "{{ ip.db_ip }}"
+    lb_servers:
       hosts:
         menu-lb:
-          ansible_host: 192.168.1.75
+          ansible_host: "{{ ip.lb_ip }}"
   vars:
     ansible_user: ubuntu
-    ansible_ssh_private_key_file: ~/.ssh/id_archvm
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     ansible_python_interpreter: /usr/bin/python3

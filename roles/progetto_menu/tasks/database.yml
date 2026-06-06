@@ -30,7 +30,7 @@
 
 - name: database | Assicura che la directory dei dati del DB esista
   ansible.builtin.file:
-    path: "{{ db_secrets.volume_path }}"
+    path: "{{ db_conn.volume_path }}"
     state: directory
     owner: "999" # UID tipico dell'utente mysql nel container ufficiale
     group: "999"
@@ -46,10 +46,10 @@
     published_ports:
       - "3306:3306"
     env:
-      MYSQL_ROOT_PASSWORD: "{{ db_secrets.root_pass }}"  # Definita in vault.yml
+      MYSQL_ROOT_PASSWORD: "{{ db_conn.root_pass }}"  # Definita in vault.yml
       MYSQL_DATABASE: "{{ db_conn.name }}"
       MYSQL_USER: "{{ db_conn.user }}"
-      MYSQL_PASSWORD: "{{ db_secrets.pass }}"            # Definita in vault.yml
+      MYSQL_PASSWORD: "{{ db_conn.pass }}"            # Definita in vault.yml
     volumes:
-      - "{{ db_secrets.volume_path }}:/var/lib/mysql"
+      - "{{ db_conn.volume_path }}:/var/lib/mysql"
   become: true

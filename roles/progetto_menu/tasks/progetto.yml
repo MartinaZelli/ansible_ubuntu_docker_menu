@@ -64,6 +64,7 @@
     dest: "{{ destinazione }}/{{ progetto_docker }}"
     version: "{{ app_config.git_version }}"
     force: true
+    # accept_hostkey: true
   become: true
 
 - name: progetto | Crea il file .env di configurazione per il database remoto
@@ -74,7 +75,7 @@
       DB_PORT={{ db_conn.port }}
       DB_NAME={{ db_conn.name }}
       DB_USER={{ db_conn.user }}
-      DB_PASSWORD={{ db_secrets.pass }}
+      DB_PASSWORD={{ db_conn.pass }}
       HOST_IP={{ ansible_host }}
     mode: '0600'
   become: true

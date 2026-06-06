@@ -22,16 +22,26 @@ pacchetti_db:
   - docker.io
   - python3-docker
 
+ip:
+  app1_ip: "{{ lookup('env', 'APP1_IP') }}"
+  app2_ip: "{{ lookup('env', 'APP2_IP') }}"
+  db_ip: "{{ lookup('env', 'DB_IP') }}"
+  lb_ip: "{{ lookup('env', 'LB_IP') }}"
+
 db_conn:
-  host: "192.168.1.73"
+  host: "{{ lookup('env', 'DB_HOST') }}"
   port: 3306
   name: "menu_progetto"
   user: "menu"
+  volume_path: "{{ lookup('env', 'DB_VOLUME_PATH') }}"
+  pass: "{{ lookup('env', 'DB_PASSWORD') }}"
+  root_pass: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"
 
 lb_config:
-  frontend_port: 80         # La porta su cui risponderà il servizio web finale
-  stats_port: 8080          # La porta per vedere la tua dashboard dei nodi
-  stats_uri: "/stats"       # Il percorso della pagina web delle statistiche
+  frontend_port: "{{ lookup('env', 'LB_FRONTEND_PORT') }}"    # La porta su cui risponderà il servizio web finale
+  stats_port: "{{ lookup('env', 'LB_STATS_PORT') }}"          # La porta per vedere la tua dashboard dei nodi
+  stats_uri: "/stats"                                         # Il percorso della pagina web delle statistiche
+  check_path: "{{ lookup('env', 'LB_CHECK_PATH') }}"        # Il percorso che HA L'OBBLIGO di restituire 200 OK per essere considerato "up" dal load balancer
 
 app_config:
   git_repo: "https://{{ lookup('env', 'GIT_TOKEN') }}@github.com/MartinaZelli/menu_v2.0.git"

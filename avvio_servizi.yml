@@ -14,8 +14,6 @@
 
 - name: "Configurazione Infrastruttura"
   hosts: all
-  vars_files:
-    - group_vars/db_servers.yml
   become: true
   roles:
     - progetto_menu
