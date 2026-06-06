@@ -117,8 +117,8 @@ Se il playbook termina con successo ma l'applicazione non risponde, controlla i 
   ```ansible -i inventory.yml -m shell -a "curl -I http://localhost" menu-lb```
 
 * Test Variabili se hai il dubbio che una variabile non venga letta correttamente, usa il modulo `debug` per interrogarla al volo:
-  - Debug variabile specifica: `
-  ``ansible -i inventory.yml -m debug -a "var=db_conn.host" menu-db --vault-password-file=.vault_pass```
+  - Debug variabile specifica:
+  ```ansible -i inventory.yml -m debug -a "var=db_conn.host" menu-db --vault-password-file=.vault_pass```
 
 * Pulizia Forzata (Riavvio dei servizi) in caso di modifiche di configurazione dove è necessario il riavvio forzato:
   - ```ansible-playbook avvio_servizi.yml -t app --extra-vars "restart_services=true"```
