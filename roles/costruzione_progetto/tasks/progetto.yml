@@ -80,7 +80,7 @@
     mode: '0600'
   become: true
 
-- name: progetto | Avvia e ricostruisci l'applicazione usando il modulo nativo Docker Compose
+- name: progetto | Avvia e ricostruisci l'applicazione usando Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ destinazione }}/{{ progetto_docker }}"
     services:

@@ -36,7 +36,7 @@ backend fastapi_backend
 backend mysql_monitor
     mode tcp
     option tcp-check
-    # Verifica che il database sia raggiungibile sulla porta 3306
+    # Verifica che il database sia raggiungibile sulla porta 3306 o quella specificata
     server db_server {{ hostvars[groups['db_servers'][0]]['ansible_host'] }}:{{ lookup('env', 'DB_PORT') | default('3306', true) }} check port {{ lookup('env', 'DB_PORT') | default('3306', true) }}
 
 # STATS FRONTEND: Pannello web di controllo per vedere lo stato delle macchine

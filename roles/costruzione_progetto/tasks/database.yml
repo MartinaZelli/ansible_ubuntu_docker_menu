@@ -19,7 +19,7 @@
     enabled: true
   become: true
 
-- name: database | Consenti le connessioni MySQL in ingresso da tutti i server applicativi
+- name: database | Consenti le connessioni MySQL in ingresso da tutti i server applicativi e per HAProxy
   community.general.ufw:
     rule: allow
     from_ip: "{{ hostvars[item]['ansible_host'] }}"

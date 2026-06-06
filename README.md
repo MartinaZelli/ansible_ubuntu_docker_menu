@@ -15,7 +15,7 @@ Prima di iniziare, assicurati che la macchina di controllo (il tuo computer) sod
 Il progetto adotta un approccio a micro-servizi isolati:
 * **Database**: Container MySQL 8.0 isolato.
 * **Application Tier**: Nodi FastAPI distribuiti in un gruppo di scaling (`app_servers`).
-* **Load Balancing**: Frontend HAProxy che gestisce il traffico verso le istanze applicative.
+* **Load Balancing**: Frontend HAProxy che gestisce il traffico verso le istanze applicative e verifica la presenza attiva del DB.
 
 ## Tech Stack & Componenti
 * **Automazione**: Ansible (con `docker_compose_v2` e moduli `ufw`).
@@ -76,23 +76,10 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 
 ## Comandi Utili per Debug e Manutenzione
 
-* **Controllo Log dei Container**
-  Se il playbook termina con successo ma l'applicazione non risponde, controlla i log:
-  - Log DB: `ansible -i inventory.yml -m shell -a "docker logs mysql_db" db`
-  - Log App: `ansible -i inventory.yml -m shell -a "docker logs <nome_container>" app`
-
-* **Verifica Connettività di Rete**
-  - Testa HAProxy (eseguito dal nodo lb):
-    `ansible -i inventory.yml -m shell -a "curl -I http://localhost" lb`
-
 * **Debug Variabili**
   Se hai il dubbio che una variabile non venga letta correttamente, usa il modulo `debug`:
   - Debug variabile specifica:
     `ansible -i inventory.yml -m debug -a "var=db_conn.host" db`
-
-* **Pulizia Forzata (Riavvio dei servizi)**
-  In caso di modifiche di configurazione dove è necessario il riavvio forzato:
-  - `ansible-playbook avvio_servizi.yml -t app --extra-vars "restart_services=true"`
 
 * **Simulazione (Dry-Run)**
   - Verifica modifiche senza applicarle: `./avvio_playbook.sh --check`
@@ -100,8 +87,17 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 * **Visualizzazione Inventario**
   - Grafico gruppi: `ansible-inventory -i inventory.yml --graph`
 
-* **Verifica Connessione**
-  - Ping su tutti gli host: `ansible -i inventory.yml -m ping all`
+* **Accedere ad una Vm**
+  - comando generico: `ssh -i /path/to/private_key user@remote_host`
+
+* **Dare un comando diretto ad una Vm**
+  - comando generico: `ssh -i /path/to/private_key user@remote_host "command_to_execute"`
+
+
+
+
+
+
 
 
 
