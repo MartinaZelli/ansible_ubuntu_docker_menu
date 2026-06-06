@@ -1,4 +1,4 @@
-progetto_docker: "progetto_menu"
+progetto_docker: "progetto"
 destinazione: "/opt"
 modalita_developer: false
 package_update: true
@@ -31,8 +31,8 @@ ip:
 db_conn:
   host: "{{ lookup('env', 'DB_HOST') }}"
   port: 3306
-  name: "menu_progetto"
-  user: "menu"
+  name: "progetto"
+  user: "user_progetto"
   volume_path: "{{ lookup('env', 'DB_VOLUME_PATH') }}"
   pass: "{{ lookup('env', 'DB_PASSWORD') }}"
   root_pass: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"

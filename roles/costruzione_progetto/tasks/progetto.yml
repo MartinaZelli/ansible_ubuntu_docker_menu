@@ -24,7 +24,7 @@
 - name: progetto | Firewall - Consenti porta configurata SOLO dal server Load Balancer
   community.general.ufw:
     rule: allow
-    from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
+    from_ip: "{{ hostvars['lb']['ansible_host'] }}"
     port: "{{ app_config.port }}"
     proto: tcp
   become: true

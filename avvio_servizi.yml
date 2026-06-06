@@ -16,6 +16,6 @@
   hosts: all
   become: true
   roles:
-    - progetto_menu
+    - costruzione_progetto
 
 #

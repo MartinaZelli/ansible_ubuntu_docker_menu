@@ -2,17 +2,17 @@
   children:
     app_servers:
       hosts:
-        menu-app:
+        app:
           ansible_host: "{{ ip.app1_ip }}"
-        menu-app-2:
+        app-2:
           ansible_host: "{{ ip.app2_ip }}"
     db_servers:
       hosts:
-        menu-db:
+      db:
           ansible_host: "{{ ip.db_ip }}"
     lb_servers:
       hosts:
-        menu-lb:                        #se si fa refactor del nome del gruppo, ricordarsi di aggiornare anche i riferimenti in database.yml e progetto.yml
+        lb:                        #se si fa refactor del nome del gruppo, ricordarsi di aggiornare anche i riferimenti in database.yml e progetto.yml
           ansible_host: "{{ ip.lb_ip }}"
   vars:
     ansible_user: ubuntu
