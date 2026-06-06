@@ -2,8 +2,9 @@
 # Inserisci qui le tue credenziali reali.
 # ricordati di creare anche il file .vault_pass
 # Dopo aver salvato, ricordati di lanciare:
-# ansible-vault encrypt group_vars/vault.yml per criptare le tue informazioni. 
+# ansible-vault encrypt group_vars/vault.yml per criptare le tue informazioni.
 
-db_config:
+db_secrets:
   pass: "inserisci_password_db_qui"
   root_pass: "inserisci_root_password_db_qui"
+  volume_path: "inserisci_il_percorso_qui"
