@@ -22,15 +22,17 @@ pacchetti_db:
   - docker.io
   - python3-docker
 
-db_config:
+db_conn:
   host: "192.168.1.73"
   port: 3306
   name: "menu_progetto"
   user: "menu"
-  pass: "menu"
-  root_pass: "rootpassword"
 
 lb_config:
   frontend_port: 80         # La porta su cui risponderà il servizio web finale
   stats_port: 8080          # La porta per vedere la tua dashboard dei nodi
   stats_uri: "/stats"       # Il percorso della pagina web delle statistiche
+
+app_config:
+  git_repo: "https://{{ lookup('env', 'GIT_TOKEN') }}@github.com/MartinaZelli/menu_v2.0.git"
+  git_version: "main"

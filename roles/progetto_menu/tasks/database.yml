@@ -28,6 +28,15 @@
   become: true
   loop: "{{ groups['app_servers'] }}"
 
+- name: database | Assicura che la directory dei dati del DB esista
+  ansible.builtin.file:
+    path: "{{ db_secrets.volume_path }}"
+    state: directory
+    owner: "999" # UID tipico dell'utente mysql nel container ufficiale
+    group: "999"
+    mode: '0750'
+  become: true
+
 - name: database | Avvia il container MySQL ufficiale in modo isolato
   community.docker.docker_container:
     name: mysql_db
@@ -37,11 +46,10 @@
     published_ports:
       - "3306:3306"
     env:
-      MYSQL_ROOT_PASSWORD: "{{ db_config.root_pass }}"
-      MYSQL_DATABASE: "{{ db_config.name }}"
-      MYSQL_USER: "{{ db_config.user }}"
-      MYSQL_PASSWORD: "{{ db_config.pass }}"
+      MYSQL_ROOT_PASSWORD: "{{ db_secrets.root_pass }}"  # Definita in vault.yml
+      MYSQL_DATABASE: "{{ db_conn.name }}"
+      MYSQL_USER: "{{ db_conn.user }}"
+      MYSQL_PASSWORD: "{{ db_secrets.pass }}"            # Definita in vault.yml
     volumes:
-      # Sostituisci in futuro questo volume locale con il tuo Network Storage!
-      - db_data:/var/lib/mysql
+      - "{{ db_secrets.volume_path }}:/var/lib/mysql"
   become: true

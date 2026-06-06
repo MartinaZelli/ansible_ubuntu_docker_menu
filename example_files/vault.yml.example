@@ -1,0 +1,9 @@
+# Crea un file vault.yml nella cartella group_vars
+# Inserisci qui le tue credenziali reali.
+# ricordati di creare anche il file .vault_pass
+# Dopo aver salvato, ricordati di lanciare:
+# ansible-vault encrypt group_vars/vault.yml per criptare le tue informazioni. 
+
+db_config:
+  pass: "inserisci_password_db_qui"
+  root_pass: "inserisci_root_password_db_qui"

@@ -43,12 +43,12 @@
 # 3. CONTROLLO DI PRONTEZZA DEL DATABASE
 - name: progetto | Attendi che la porta del database sia aperta e responsiva via rete
   ansible.builtin.wait_for:
-    host: "{{ db_config.host }}"
-    port: "{{ db_config.port }}"
+    host: "{{ db_conn.host }}"
+    port: "{{ db_conn.port }}"
     state: started
     delay: 3
     timeout: 60
-    msg: "Il database su {{ db_config.host }} non è pronto dopo 60 secondi. Interrompo il deployment dell'app."
+    msg: "Il database su {{ db_conn.host }} non è pronto dopo 60 secondi. Interrompo il deployment dell'app."
 
 # 4. DEPLOY E AVVIO DELL'APPLICAZIONE FASTAPI
 - name: progetto | Crea directory di destinazione del progetto
@@ -60,9 +60,9 @@
 
 - name: progetto | Scarica codice Git repository v2.0
   ansible.builtin.git:
-    repo: "https://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@github.com/MartinaZelli/menu_v2.0.git"
+    repo: "{{ app_config.git_repo }}"
     dest: "{{ destinazione }}/{{ progetto_docker }}"
-    version: "main"
+    version: "{{ app_config.git_version }}"
     force: true
   become: true
 
@@ -70,13 +70,13 @@
   ansible.builtin.copy:
     dest: "{{ destinazione }}/{{ progetto_docker }}/.env"
     content: |
-      DB_HOST={{ db_config.host }}
-      DB_PORT={{ db_config.port }}
-      DB_NAME={{ db_config.name }}
-      DB_USER={{ db_config.user }}
-      DB_PASSWORD={{ db_config.pass }}
+      DB_HOST={{ db_conn.host }}
+      DB_PORT={{ db_conn.port }}
+      DB_NAME={{ db_conn.name }}
+      DB_USER={{ db_conn.user }}
+      DB_PASSWORD={{ db_secrets.pass }}
       HOST_IP={{ ansible_host }}
-    mode: '0644'
+    mode: '0600'
   become: true
 
 - name: progetto | Avvia e ricostruisci l'applicazione usando il modulo nativo Docker Compose

@@ -1,0 +1,30 @@
+# --- Ansible Vault ---
+# Escludi il file della password locale
+.vault_pass
+
+# --- Configurazioni sensibili e variabili locali ---
+# Escludi file .env che potrebbero contenere credenziali
+.env
+*.env
+# Escludi eventuali file di variabili non criptate (se ne crei in futuro)
+group_vars/*_local.yml
+
+# --- SSH e Identità ---
+# Escludi chiavi private o file di configurazione SSH personali
+.ssh/
+*.key
+*.pem
+
+# --- Cache e file temporanei di Ansible ---
+# Ansible crea spesso file di cache o log locali
+.ansible/
+*.retry
+tmp/
+log/
+
+# --- File di sistema/IDE ---
+# File generati da macOS o Windows o IDE
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
