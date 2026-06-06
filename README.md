@@ -47,10 +47,13 @@ Sostituisci il file db_server nella cartella group_vars:
 
 Per modificare i segreti criptati:
 ```ansible-vault edit group_vars/db_servers.yml```
+
 Per decriptare i segreti criptati:
 ```ansible-vault decrypt group_vars/db_servers.yml```
+
 Per criptare i segreti:
 ```ansible-vault encrypt group_vars/db_servers.yml```
+
 
 ### 3. Procedura di Avvio
 Per eseguire l'automazione, utilizza lo script `avvio_playbook.sh`, che automatizza l'esportazione delle variabili d'ambiente e l'integrazione con il Vault:
