@@ -21,11 +21,11 @@
     name: OpenSSH
   become: true
 
-- name: progetto | Firewall - Consenti porta 8000 SOLO dal server Load Balancer
+- name: progetto | Firewall - Consenti porta configurata SOLO dal server Load Balancer
   community.general.ufw:
     rule: allow
     from_ip: "{{ hostvars['menu-lb']['ansible_host'] }}"
-    port: '8000'
+    port: "{{ app_config.port }}"
     proto: tcp
   become: true
 

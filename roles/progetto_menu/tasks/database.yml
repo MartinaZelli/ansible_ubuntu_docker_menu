@@ -28,23 +28,14 @@
   become: true
   loop: "{{ groups['app_servers'] }}"
 
-- name: database | Assicura che la directory dei dati del DB esista
-  ansible.builtin.file:
-    path: "{{ db_conn.volume_path }}"
-    state: directory
-    owner: "999" # UID tipico dell'utente mysql nel container ufficiale
-    group: "999"
-    mode: '0750'
-  become: true
-
 - name: database | Avvia il container MySQL ufficiale in modo isolato
   community.docker.docker_container:
     name: mysql_db
-    image: mysql:8.0
+    image: "{{ lookup('env', 'DB_IMAGE') | default('mysql:8.0', true) }}"
     state: started
     restart_policy: always
     published_ports:
-      - "3306:3306"
+      - "{{ lookup('env', 'DB_PORT') | default('3306', true) }}:{{ lookup('env', 'DB_PORT') | default('3306', true) }}"
     env:
       MYSQL_ROOT_PASSWORD: "{{ db_conn.root_pass }}"  # Definita in vault.yml
       MYSQL_DATABASE: "{{ db_conn.name }}"

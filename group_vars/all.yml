@@ -38,11 +38,17 @@ db_conn:
   root_pass: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"
 
 lb_config:
-  frontend_port: "{{ lookup('env', 'LB_FRONTEND_PORT') }}"    # La porta su cui risponderà il servizio web finale
-  stats_port: "{{ lookup('env', 'LB_STATS_PORT') }}"          # La porta per vedere la tua dashboard dei nodi
-  stats_uri: "/stats"                                         # Il percorso della pagina web delle statistiche
-  check_path: "{{ lookup('env', 'LB_CHECK_PATH') }}"        # Il percorso che HA L'OBBLIGO di restituire 200 OK per essere considerato "up" dal load balancer
+  frontend_port: "{{ lookup('env', 'LB_FRONTEND_PORT') }}"
+  stats_port: "{{ lookup('env', 'LB_STATS_PORT') }}"
+  stats_uri: "{{ lookup('env', 'LB_STATS_URI') | default('/stats', true) }}"
+  check_path: "{{ lookup('env', 'LB_CHECK_PATH') }}"
+  maxconn: "{{ lookup('env', 'LB_MAXCONN') | default('20000', true) }}"
+  timeout_connect: "{{ lookup('env', 'LB_TIMEOUT_CONNECT') | default('5000', true) }}"
+  timeout_client: "{{ lookup('env', 'LB_TIMEOUT_CLIENT') | default('50000', true) }}"
+  timeout_server: "{{ lookup('env', 'LB_TIMEOUT_SERVER') | default('50000', true) }}"
+  algorithm: "{{ lookup('env', 'LB_ALGORITHM') | default('roundrobin', true) }}"
 
 app_config:
   git_repo: "https://{{ lookup('env', 'GIT_TOKEN') }}@github.com/MartinaZelli/menu_v2.0.git"
   git_version: "main"
+  port: "{{ lookup('env', 'APP_CONFIG_PORT') | default('8000', true) }}"

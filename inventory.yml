@@ -12,7 +12,7 @@
           ansible_host: "{{ ip.db_ip }}"
     lb_servers:
       hosts:
-        menu-lb:
+        menu-lb:                        #se si fa refactor del nome del gruppo, ricordarsi di aggiornare anche i riferimenti in database.yml e progetto.yml
           ansible_host: "{{ ip.lb_ip }}"
   vars:
     ansible_user: ubuntu

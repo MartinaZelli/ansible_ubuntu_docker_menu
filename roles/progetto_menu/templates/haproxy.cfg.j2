@@ -1,5 +1,5 @@
 global
-    maxconn     20000
+    maxconn     {{ lb_config.maxconn }}
     log         127.0.0.1:514 local0
     log         127.0.0.1:514 local1 notice
     user        haproxy
@@ -12,9 +12,9 @@ defaults
     option      httplog
     option      dontlognull
     log         global
-    timeout connect 5000
-    timeout client  50000
-    timeout server  50000
+    timeout connect {{ lb_config.timeout_connect }}
+    timeout client  {{ lb_config.timeout_client }}
+    timeout server  {{ lb_config.timeout_server }}
 
 # FRONTEND: Riceve il traffico web sulla porta 80 ed è l'unico esposto
 frontend main_frontend
@@ -26,7 +26,7 @@ frontend main_frontend
 # BACKEND: Distribuisce il traffico in modo dinamico sulle VM del gruppo app_servers
 backend fastapi_backend
     mode http
-    balance roundrobin
+    balance {{ lb_config.algorithm }}
     option httpchk GET {{ lb_config.check_path }}
 {% for server in groups['app_servers'] %}
     server {{ hostvars[server]['inventory_hostname'] }} {{ hostvars[server]['ansible_host'] }}:8000 check
