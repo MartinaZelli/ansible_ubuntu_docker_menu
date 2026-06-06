@@ -37,16 +37,20 @@ Crea i seguenti file nella root del progetto:
 
 * **.vault_pass**: Contiene la password per il Vault (imposta i permessi con chmod 600).
 
+Sostituisci il file db_server nella cartella group_vars:
+
+* **.db_servers**: Definisce le variabili segrete per l'accesso al database
+
 ### 2. Struttura delle Variabili
 * **group_vars/all.yml**: Contiene le variabili pubbliche (host, porta, path).
 * **group_vars/db_servers.yml** (Criptato): Contiene i segreti (pass, root_pass, volume_path).
 
 Per modificare i segreti criptati:
-ansible-vault edit group_vars/db_servers.yml
+```ansible-vault edit group_vars/db_servers.yml```
 Per decriptare i segreti criptati:
-ansible-vault decrypt group_vars/db_servers.yml
+```ansible-vault decrypt group_vars/db_servers.yml```
 Per criptare i segreti:
-ansible-vault encrypt group_vars/db_servers.yml
+```ansible-vault encrypt group_vars/db_servers.yml```
 
 ### 3. Procedura di Avvio
 Per eseguire l'automazione, utilizza lo script `avvio_playbook.sh`, che automatizza l'esportazione delle variabili d'ambiente e l'integrazione con il Vault:
@@ -61,6 +65,7 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 * **Solo Load Balancer**: `./avvio_playbook.sh -t lb`
 
 ## Struttura del Progetto
+```
 .
 ├── ansible.cfg                 # Configurazione globale di Ansible
 ├── avvio_playbook.sh           # Script bash per avviare il playbook con supporto tag
@@ -86,6 +91,7 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
         │   └── sistema.yml     # Setup Docker, pacchetti e utenti
         └── templates
             └── haproxy.cfg.j2  # Template per la configurazione del bilanciatore
+```
 
 ## Troubleshooting e Note Operative
 * Per verificare che le variabili siano lette correttamente:
