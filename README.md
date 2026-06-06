@@ -26,34 +26,15 @@ Il progetto adotta un approccio a micro-servizi isolati:
 * **Target OS**: Ubuntu 24.04 LTS.
 
 ## Configurazione Operativa
-Per avviare correttamente il progetto, è necessario seguire la configurazione delle variabili e la gestione della sicurezza tramite Ansible Vault.
+PIl progetto è ora interamente configurato tramite variabili d'ambiente.
 
 ### 1. Preparazione dell'Ambiente
-Crea i seguenti file nella root del progetto:
-
-* **.env**: Definisce le variabili di ambiente per lo script di avvio.
-  GIT_TOKEN=tuo_token_github_qui
-  PRIVATE_KEY_PATH=~/.ssh/la_tua_chiave_ssh
-
-* **.vault_pass**: Contiene la password per il Vault (imposta i permessi con chmod 600).
-
-Sostituisci il file db_server nella cartella group_vars:
-
-* **.db_servers**: Definisce le variabili segrete per l'accesso al database
+Crea un file `.env` nella root del progetto basandoti sul file `.env.example`.
+Il sistema legge automaticamente le variabili tramite lo script `avvio_playbook.sh`.
 
 ### 2. Struttura delle Variabili
-* **group_vars/all.yml**: Contiene le variabili pubbliche (host, porta, path).
-* **group_vars/db_servers.yml** (Criptato): Contiene i segreti (pass, root_pass, volume_path).
-
-Per modificare i segreti criptati:
-```ansible-vault edit group_vars/db_servers.yml```
-
-Per decriptare i segreti criptati:
-```ansible-vault decrypt group_vars/db_servers.yml```
-
-Per criptare i segreti:
-```ansible-vault encrypt group_vars/db_servers.yml```
-
+* **.env**: Centralizza tutte le configurazioni (credenziali DB, IP, porte, token Git, etc.).
+* **group_vars/all.yml**: Contiene i default per l'applicazione e le strutture dati dei gruppi.
 
 ### 3. Procedura di Avvio
 Per eseguire l'automazione, utilizza lo script `avvio_playbook.sh`, che automatizza l'esportazione delle variabili d'ambiente e l'integrazione con il Vault:
@@ -97,9 +78,7 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 ```
 
 ## Comandi Utili per Debug e Manutenzione
-* Per verificare che le variabili siano lette correttamente:
-  ```ansible-inventory --list --vault-password-file=.vault_pass```
-* Debug: Per vedere i dettagli di un errore, usa la verbosità elevata:
+* Debug: Per vedere i dettagli di un errore, usa la verbosità elevata (da 1 a 4 v):
   ```./avvio_playbook.sh -vvv -t [tag] ```
 * Verifica Stato: Controlla se i container sono attivi su tutti i nodi:
  ``` ansible -i inventory.yml -m shell -a "docker ps" all```
@@ -118,7 +97,7 @@ Se il playbook termina con successo ma l'applicazione non risponde, controlla i 
 
 * Test Variabili se hai il dubbio che una variabile non venga letta correttamente, usa il modulo `debug` per interrogarla al volo:
   - Debug variabile specifica:
-  ```ansible -i inventory.yml -m debug -a "var=db_conn.host" menu-db --vault-password-file=.vault_pass```
+  ```ansible -i inventory.yml -m debug -a "var=db_conn.host" menu-db```
 
 * Pulizia Forzata (Riavvio dei servizi) in caso di modifiche di configurazione dove è necessario il riavvio forzato:
   - ```ansible-playbook avvio_servizi.yml -t app --extra-vars "restart_services=true"```
