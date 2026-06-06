@@ -23,10 +23,10 @@
   community.general.ufw:
     rule: allow
     from_ip: "{{ hostvars[item]['ansible_host'] }}"
-    port: '3306'
+    port: "{{ lookup('env', 'DB_PORT') | default('3306', true) }}"
     proto: tcp
   become: true
-  loop: "{{ groups['app_servers'] }}"
+  loop: "{{ groups['app_servers'] + groups['lb_servers'] }}"
 
 - name: database | Avvia il container MySQL ufficiale in modo isolato
   community.docker.docker_container:
@@ -37,10 +37,10 @@
     published_ports:
       - "{{ lookup('env', 'DB_PORT') | default('3306', true) }}:{{ lookup('env', 'DB_PORT') | default('3306', true) }}"
     env:
-      MYSQL_ROOT_PASSWORD: "{{ db_conn.root_pass }}"  # Definita in vault.yml
+      MYSQL_ROOT_PASSWORD: "{{ db_conn.root_pass }}"
       MYSQL_DATABASE: "{{ db_conn.name }}"
       MYSQL_USER: "{{ db_conn.user }}"
-      MYSQL_PASSWORD: "{{ db_conn.pass }}"            # Definita in vault.yml
+      MYSQL_PASSWORD: "{{ db_conn.pass }}"
     volumes:
       - "{{ db_conn.volume_path }}:/var/lib/mysql"
   become: true
