@@ -15,8 +15,9 @@ fi
 export $(grep -v '^#' .env | xargs)
 
 # 3. Lancio di Ansible
-# Aggiungiamo --vault-password-file=.vault_pass per automatizzare la decrittazione
+# L'aggiunta di "$@" permette di passare qualsiasi argomento (inclusi i tag)
+# passati allo script direttamente al comando ansible-playbook
 ansible-playbook -i inventory.yml \
   --private-key "$PRIVATE_KEY_PATH" \
   --vault-password-file=.vault_pass \
-  avvio_servizi.yml
+  avvio_servizi.yml "$@"

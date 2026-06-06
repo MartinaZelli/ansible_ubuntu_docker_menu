@@ -1,4 +1,4 @@
-# Crea un file vault.yml nella cartella group_vars
+# Crea un file db_servers.yml nella cartella group_vars
 # Inserisci qui le tue credenziali reali.
 # ricordati di creare anche il file .vault_pass
 # Dopo aver salvato, ricordati di lanciare:
