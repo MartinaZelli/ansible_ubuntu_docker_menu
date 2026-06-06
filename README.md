@@ -1,4 +1,3 @@
-```markdown
 # Progetto: Infrastruttura Distribuita FastAPI & MySQL
 
 Questo repository contiene l'automazione Ansible per il deployment di un'architettura scalabile composta da un database MySQL, molteplici nodi applicativi FastAPI e un bilanciatore di carico HAProxy, il tutto orchestrato su server Ubuntu 24.04 LTS.
