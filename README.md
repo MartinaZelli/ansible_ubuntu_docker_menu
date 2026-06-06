@@ -52,12 +52,9 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 ```
 .
 ├── ansible.cfg                 # Configurazione globale di Ansible
+├── .env.example                # file .env di esempio
 ├── avvio_playbook.sh           # Script bash per avviare il playbook con supporto tag
 ├── avvio_servizi.yml           # Playbook principale che orchestra i ruoli
-├── example_files
-│   └── db_servers.yml.example  # Esempio di variabili segrete (non criptato)
-│   └── .env.example            # Esempio di variabili d'ambiente
-│   └── .vault_pass.example     # Esempio di file di password
 ├── group_vars
 │   ├── all.yml                 # Variabili di configurazione (host, porta, path)
 │   └── db_servers.yml          # Credenziali criptate (Vault - pass, root_pass)
