@@ -91,6 +91,9 @@
     - project_cleanup_haproxy_conf.stat.exists
   notify: "Riavvia HAProxy"
 
+- name: Cleanup | Esegui riavvii necessari prima di procedere
+  ansible.builtin.meta: flush_handlers
+
 - name: Cleanup | Rimuovi intera configurazione base HAProxy
   ansible.builtin.file:
     path: /etc/haproxy/haproxy.cfg
