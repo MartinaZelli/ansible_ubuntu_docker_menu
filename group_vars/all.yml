@@ -36,6 +36,7 @@ db_conn:
   volume_path: "{{ lookup('env', 'DB_VOLUME_PATH') }}"
   pass: "{{ lookup('env', 'DB_PASSWORD') }}"
   root_pass: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"
+  destroy_volume: "{{ lookup('env', 'DB_DESTROY_VOLUME') | default('false', true) }}" # Imposta a true  per rimuovere fisicamente i dati all'avvio del cleanup
 
 lb_config:
   frontend_port: "{{ lookup('env', 'LB_FRONTEND_PORT') }}"
