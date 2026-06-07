@@ -48,7 +48,7 @@ lb_config:
   timeout_client: "{{ lookup('env', 'LB_TIMEOUT_CLIENT') | default('50000', true) }}"
   timeout_server: "{{ lookup('env', 'LB_TIMEOUT_SERVER') | default('50000', true) }}"
   algorithm: "{{ lookup('env', 'LB_ALGORITHM') | default('roundrobin', true) }}"
-  force_config: "{{ lookup('env', 'LB_FORCE_CONFIG') | default('true', true) }}" # false: se il file esiste non viene sovrascritto.
+  force_config: "{{ lookup('env', 'LB_FORCE_CONFIG') | default('false', true) }}" # false: se il file esiste non viene sovrascritto.
   destroy_lb_base: "{{ lookup('env', 'LB_DESTROY_BASE') | default('true', true) | bool }}" # true: rimuove il file di configurazione base durante il cleanup.
 
 app_config:

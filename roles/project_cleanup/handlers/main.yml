@@ -1,0 +1,6 @@
+---
+- name: Riavvia HAProxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: restarted
+  become: true
