@@ -51,27 +51,29 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 ## Struttura del Progetto
 ```
 .
-├── ansible.cfg                 # Configurazione globale di Ansible
-├── .env.example                # file .env di esempio
-├── avvio_playbook.sh           # Script bash per avviare il playbook con supporto tag
-├── avvio_servizi.yml           # Playbook principale che orchestra i ruoli
+├── ansible.cfg                       # Configurazione globale di Ansible
+├── .env.example                      # file .env di esempio
+├── avvio_playbook.sh                 # Script bash per avviare il playbook con supporto tag
+├── avvio_servizi.yml                 # Playbook principale che orchestra i ruoli
 ├── group_vars
-│   ├── all.yml                 # Variabili di configurazione (host, porta, path)
-│   └── db_servers.yml          # Credenziali criptate (Vault - pass, root_pass)
-├── inventory.yml               # Inventario degli host (gruppi app, db, lb)
-├── README.md                   # Documentazione operativa del progetto
+│   ├── all.yml                       # Variabili di configurazione (host, porta, path)
+│   └── db_servers.yml                # Credenziali criptate (Vault - pass, root_pass)
+├── inventory.yml                     # Inventario degli host (gruppi app, db, lb)
+├── README.md                         # Documentazione operativa del progetto
 └── roles
-    └── progetto_menu           # Ruolo principale di automazione
+    └── progetto_menu                 # Ruolo principale di automazione
         ├── handlers
-        │   └── main.yml        # Gestione riavvio servizi (Docker/HAProxy)
+        │   └── main.yml              # Gestione riavvio servizi (Docker/HAProxy)
         ├── tasks
-        │   ├── database.yml    # Setup container MySQL e volumi
-        │   ├── load_balancer.yml# Configurazione HAProxy
-        │   ├── main.yml        # Inizializzazione ruoli e inclusioni
-        │   ├── progetto.yml    # Setup Git, Python e generazione .env
-        │   └── sistema.yml     # Setup Docker, pacchetti e utenti
+        │   ├── database.yml          # Setup container MySQL e volumi
+        │   ├── load_balancer.yml     # Configurazione HAProxy
+        │   ├── main.yml              # Inizializzazione ruoli e inclusioni
+        │   ├── progetto.yml          # Setup Git, Python e generazione .env
+        │   └── sistema.yml           # Setup Docker, pacchetti e utenti
         └── templates
-            └── haproxy.cfg.j2  # Template per la configurazione del bilanciatore
+            └── haproxy_app.cfg.j2    # Template per la configurazione del bilanciatore: backend app
+            └── haproxy_db.cfg.j2     # Template per la configurazione del bilanciatore: backand db
+            └── haproxy_base.cfg.j2   # Template per la configurazione del bilanciatore: default e frontend
 ```
 
 ## Comandi Utili per Debug e Manutenzione

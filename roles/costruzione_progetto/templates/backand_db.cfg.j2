@@ -1,0 +1,4 @@
+backend mysql_monitor
+    mode tcp
+    option tcp-check
+    server db_server {{ hostvars[groups['db_servers'][0]]['ansible_host'] }}:{{ db_conn.port }} check port {{ db_conn.port }}

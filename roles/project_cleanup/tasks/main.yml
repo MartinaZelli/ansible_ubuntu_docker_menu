@@ -1,0 +1,74 @@
+---
+# 1. Pulizia Applicazione (FastAPI)
+- name: Cleanup | Rimuovi stack Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ destinazione }}/{{ progetto_docker }}"
+    state: absent
+  become: true
+  when: inventory_hostname in groups['app_servers']
+
+- name: Cleanup | Rimuovi directory progetto
+  ansible.builtin.file:
+    path: "{{ destinazione }}/{{ progetto_docker }}"
+    state: absent
+  become: true
+  when: inventory_hostname in groups['app_servers']
+
+# 2. Pulizia Database
+- name: Cleanup | Rimuovi container MySQL
+  community.docker.docker_container:
+    name: mysql_db
+    state: absent
+  become: true
+  when: inventory_hostname in groups['db_servers']
+
+- name: Cleanup | Rimuovi volume database (opzionale)
+  ansible.builtin.file:
+    path: "{{ db_conn.volume_path }}"
+    state: absent
+  become: true
+  when:
+    - inventory_hostname in groups['db_servers']
+    - db_conn.destroy_db_volume | bool
+
+# 3. Pulizia Load Balancer (rimozione chirurgica)
+- name: Cleanup | Rimuovi backend app da HAProxy
+  ansible.builtin.blockinfile:
+    path: /etc/haproxy/haproxy.cfg
+    marker: "# {mark} {{ haproxy_markers.fastapi }}"
+    state: absent
+  become: true
+  when: inventory_hostname in groups['lb_servers']
+  notify: "Riavvia HAProxy"
+
+- name: Cleanup | Rimuovi backend db da HAProxy
+  ansible.builtin.blockinfile:
+    path: /etc/haproxy/haproxy.cfg
+    marker: "# {mark} {{ haproxy_markers.mysql_monitor }}"
+    state: absent
+  become: true
+  when: inventory_hostname in groups['lb_servers']
+  notify: "Riavvia HAProxy"
+
+# Rimozione opzionale del file di configurazione
+- name: Cleanup | Rimuovi intera configurazione base HAProxy
+  ansible.builtin.file:
+    path: /etc/haproxy/haproxy.cfg
+    state: absent
+  become: true
+  when:
+    - inventory_hostname in groups['lb_servers']
+    - lb_config.destroy_lb_base | bool
+
+# 4. Pulizia Firewall (Rimozione chirurgica)
+- name: Cleanup | Rimuovi regole UFW specifiche
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: tcp
+    from_ip: "{{ item.from_ip | default(omit) }}"
+    state: absent
+  become: true
+  loop:
+    - { port: "{{ db_conn.port }}" } # Esempio: dovrai specificare le porte esatte
+    - { port: "{{ app_config.port }}", from_ip: "{{ hostvars['lb']['ansible_host'] }}" }

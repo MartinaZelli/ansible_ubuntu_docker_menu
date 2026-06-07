@@ -1,0 +1,7 @@
+backend fastapi_backend
+    mode http
+    balance {{ lb_config.algorithm }}
+    option httpchk {{ lb_config.check_path }}
+{% for server in groups['app_servers'] %}
+    server {{ hostvars[server]['inventory_hostname'] }} {{ hostvars[server]['ansible_host'] }}:8000 check
+{% endfor %}
