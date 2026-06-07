@@ -22,3 +22,12 @@ frontend main_frontend
     mode http
     option httplog
     default_backend fastapi_backend
+
+# STATS FRONTEND: Pannello web di controllo per vedere lo stato delle macchine
+frontend stats_frontend
+    bind *:{{ lb_config.stats_port }}
+    mode http
+    stats enable
+    stats uri {{ lb_config.stats_uri }}
+    stats refresh 10s
+    stats admin if TRUE
