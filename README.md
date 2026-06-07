@@ -51,30 +51,53 @@ Puoi eseguire il deployment parziale per testare singole componenti passando i t
 ## Struttura del Progetto
 ```
 .
-├── ansible.cfg                       # Configurazione globale di Ansible
-├── .env.example                      # file .env di esempio
-├── avvio_playbook.sh                 # Script bash per avviare il playbook con supporto tag
-├── avvio_servizi.yml                 # Playbook principale che orchestra i ruoli
+├── ansible.cfg                  # Configurazione globale di Ansible
+├── avvio_servizi.sh             # Script Bash per avviare il deploy
+├── avvio_servizi.yml            # Playbook principale di installazione
+├── cleanup_servizi.sh           # Script Bash per avviare la pulizia
+├── cleanup_servizi.yml          # Playbook principale di rimozione risorse
 ├── group_vars
-│   ├── all.yml                       # Variabili di configurazione (host, porta, path)
-│   └── db_servers.yml                # Credenziali criptate (Vault - pass, root_pass)
-├── inventory.yml                     # Inventario degli host (gruppi app, db, lb)
-├── README.md                         # Documentazione operativa del progetto
+│   └── all.yml                  # Variabili globali condivise tra i gruppi
+├── inventory.yml                # Inventario degli host e dei gruppi
+├── README.md                    # Documentazione del progetto
 └── roles
-    └── progetto_menu                 # Ruolo principale di automazione
+    ├── costruzione_progetto     # Ruolo per il deploy delle risorse
+    │   ├── handlers
+    │   │   └── main.yml         # Gestione riavvio servizi (es. reload HAProxy)
+    │   ├── tasks
+    │   │   ├── database.yml     # Setup container MySQL e volumi
+    │   │   ├── load_balancer.yml# Configurazione HAProxy
+    │   │   ├── main.yml         # Punto di ingresso del ruolo
+    │   │   ├── progetto.yml     # Setup Git e applicazione
+    │   │   └── sistema.yml      # Setup pacchetti base e Docker
+    │   └── templates
+    │       ├── backend_app.cfg.j2   # Template backend app per HAProxy
+    │       ├── backend_db.cfg.j2    # Template backend DB per HAProxy
+    │       └── haproxy_base.cfg.j2  # Template base HAProxy
+    └── project_cleanup          # Ruolo per la pulizia delle risorse
         ├── handlers
-        │   └── main.yml              # Gestione riavvio servizi (Docker/HAProxy)
-        ├── tasks
-        │   ├── database.yml          # Setup container MySQL e volumi
-        │   ├── load_balancer.yml     # Configurazione HAProxy
-        │   ├── main.yml              # Inizializzazione ruoli e inclusioni
-        │   ├── progetto.yml          # Setup Git, Python e generazione .env
-        │   └── sistema.yml           # Setup Docker, pacchetti e utenti
-        └── templates
-            └── haproxy_app.cfg.j2    # Template per la configurazione del bilanciatore: backend app
-            └── haproxy_db.cfg.j2     # Template per la configurazione del bilanciatore: backand db
-            └── haproxy_base.cfg.j2   # Template per la configurazione del bilanciatore: default e frontend
+        │   └── main.yml         # Handler per il riavvio post-pulizia
+        └── tasks
+            └── main.yml         # Logica di rimozione sicura (stat + absent)
 ```
+## Procedure di Gestione
+Il progetto offre un secondo workflow gestito tramite script Bash:
+
+* **Cleanup (Pulizia)**: Utilizza `./cleanup_servizi.sh` per rimuovere i servizi in modo sicuro e controllato.
+
+### 3. Procedura di Avvio Cleanup
+Per eseguire l'automazione, utilizza lo script `cleanup_servizi.sh`, che automatizza l'esportazione delle variabili d'ambiente e l'integrazione con il Vault:
+
+1. Rendi lo script eseguibile: `chmod +x cleanup_servizi.sh`
+2. Lancia il deployment completo: `./cleanup_servizi.sh`
+
+## Modulo di Cleanup (`project_cleanup`)
+È stata implementata una procedura dedicata per la rimozione dei servizi, progettata per essere idempotente e sicura:
+
+* **Rimozione Risorse**: Elimina container Docker, volumi dati e directory di progetto.
+* **Cleanup HAProxy**: Rimuove chirurgicamente i backend dai file di configurazione (`haproxy.cfg`) utilizzando i marker definiti, senza compromettere il resto della configurazione.
+* **Firewall (UFW)**: Ripulisce automaticamente le regole UFW create durante la fase di avvio.
+* **Resilienza**: Il playbook utilizza verifiche preventive (`stat`) per ogni risorsa. Se un file o una directory è già stato rimosso, il playbook salta il task senza restituire errori, garantendo una procedura di pulizia sempre completabile.
 
 ## Comandi Utili per Debug e Manutenzione
 
