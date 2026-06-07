@@ -14,6 +14,16 @@
   become: true
   when: inventory_hostname in groups['app_servers']
 
+- name: Cleanup | Rimuovi regola UFW porta applicazione
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ hostvars['lb']['ansible_host'] }}"
+    port: "{{ app_config.port }}"
+    proto: tcp
+    delete: true
+  become: true
+  when: inventory_hostname in groups['app_servers']
+
 # 2. Pulizia Database
 - name: Cleanup | Rimuovi container MySQL
   community.docker.docker_container:
@@ -30,6 +40,17 @@
   when:
     - inventory_hostname in groups['db_servers']
     - db_conn.destroy_db_volume | bool
+
+- name: Cleanup | Rimuovi regole UFW specifiche per il database
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ hostvars[item]['ansible_host'] }}"
+    port: "{{ lookup('env', 'DB_PORT') | default('3306', true) }}"
+    proto: tcp
+    delete: true
+  become: true
+  loop: "{{ groups['app_servers'] + groups['lb_servers'] }}"
+  when: inventory_hostname in groups['db_servers']
 
 # 3. Pulizia Load Balancer (rimozione chirurgica)
 - name: Cleanup | Rimuovi backend app da HAProxy
@@ -60,15 +81,14 @@
     - inventory_hostname in groups['lb_servers']
     - lb_config.destroy_lb_base | bool
 
-# 4. Pulizia Firewall (Rimozione chirurgica)
-- name: Cleanup | Rimuovi regole UFW specifiche
+- name: Cleanup | Rimuovi regole UFW specifiche per il Load Balancer
   community.general.ufw:
     rule: allow
-    port: "{{ item.port }}"
+    port: "{{ item }}"
     proto: tcp
-    from_ip: "{{ item.from_ip | default(omit) }}"
-    state: absent
+    delete: true
   become: true
   loop:
-    - { port: "{{ db_conn.port }}" } # Esempio: dovrai specificare le porte esatte
-    - { port: "{{ app_config.port }}", from_ip: "{{ hostvars['lb']['ansible_host'] }}" }
+    - "{{ lb_config.frontend_port }}"
+    - "{{ lb_config.stats_port }}"
+  when: inventory_hostname in groups['lb_servers']
