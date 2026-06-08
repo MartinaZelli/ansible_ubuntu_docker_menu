@@ -69,31 +69,6 @@
   register: project_cleanup_haproxy_conf
   when: inventory_hostname in groups['lb_servers']
 
-- name: Cleanup | Rimuovi backend app da HAProxy
-  ansible.builtin.blockinfile:
-    path: /etc/haproxy/haproxy.cfg
-    marker: "# {mark} {{ haproxy_markers.fastapi }}"
-    state: absent
-  become: true
-  when:
-    - inventory_hostname in groups['lb_servers']
-    - project_cleanup_haproxy_conf.stat.exists
-  notify: "Riavvia HAProxy"
-
-- name: Cleanup | Rimuovi backend db da HAProxy
-  ansible.builtin.blockinfile:
-    path: /etc/haproxy/haproxy.cfg
-    marker: "# {mark} {{ haproxy_markers.mysql_monitor }}"
-    state: absent
-  become: true
-  when:
-    - inventory_hostname in groups['lb_servers']
-    - project_cleanup_haproxy_conf.stat.exists
-  notify: "Riavvia HAProxy"
-
-- name: Cleanup | Esegui riavvii necessari prima di procedere
-  ansible.builtin.meta: flush_handlers
-
 - name: Cleanup | Rimuovi intera configurazione base HAProxy
   ansible.builtin.file:
     path: /etc/haproxy/haproxy.cfg
@@ -101,8 +76,6 @@
   become: true
   when:
     - inventory_hostname in groups['lb_servers']
-    - lb_config.destroy_lb_base | bool
-    - project_cleanup_haproxy_conf.stat.exists
 
 - name: Cleanup | Rimuovi regole UFW specifiche per il Load Balancer
   community.general.ufw:
