@@ -1,5 +1,7 @@
 ---
 # ===== 1) La CA: l'autorità di fiducia (= il tuo openssl req -x509 per ca.crt) =====
+# La CA senza passphrase è una semplificazione da lab: in produzione la chiave della CA andrebbe protetta da passphrase
+# (e idealmente su una macchina dedicata, non sullo stesso host che serve). Per ora 0600 + root-only basta; lo annoto come hardening futuro.
 - name: Genera la chiave privata della CA
   community.crypto.openssl_privatekey:
     path: "{{ ldap_server_ca_key }}"
