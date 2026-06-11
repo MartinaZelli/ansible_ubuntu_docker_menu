@@ -7,3 +7,8 @@
 - name: Crea struttura e utenti della directory
   ansible.builtin.import_tasks: structure.yml
   tags: [ldap_structure]
+
+- name: Configurazione TLS del server LDAP
+  ansible.builtin.import_tasks: tls.yml
+  when: ldap_server_tls_enabled
+  tags: [ldap_tls]
