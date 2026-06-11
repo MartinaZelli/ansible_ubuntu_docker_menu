@@ -1,0 +1,51 @@
+- name: Verifica che la password admin sia stata fornita
+  ansible.builtin.assert:
+    that:
+      - ldap_server_admin_password | length > 0
+    fail_msg: >-
+      ldap_server_admin_password è vuota. Hai caricato il .env?
+      Esegui: set -a; source .env; set +a
+
+
+- name: Installa debconf-utils (richiesto dal modulo debconf)
+  ansible.builtin.apt:
+    name: debconf-utils
+    state: present
+    update_cache: true
+
+- name: Preconfigura le risposte debconf di slapd (PRIMA dell'installazione)
+  ansible.builtin.debconf:
+    name: slapd
+    question: "{{ item.question }}"
+    vtype: "{{ item.vtype }}"
+    value: "{{ item.value }}"
+  loop:
+    - { question: "slapd/domain", vtype: "string", value: "{{ ldap_server_domain }}" }
+    - { question: "shared/organization", vtype: "string", value: "{{ ldap_server_organization }}" }
+    - { question: "slapd/backend", vtype: "select", value: "{{ ldap_server_backend }}" }
+    - { question: "slapd/no_configuration", vtype: "boolean", value: "false" }
+    - { question: "slapd/purge_database", vtype: "boolean", value: "false" }
+    - { question: "slapd/move_old_database", vtype: "boolean", value: "true" }
+    - { question: "slapd/allow_ldap_v2", vtype: "boolean", value: "false" }
+  loop_control:
+    label: "{{ item.question }}"
+
+- name: Preconfigura la password admin di slapd
+  ansible.builtin.debconf:
+    name: slapd
+    question: "{{ item }}"
+    vtype: password
+    value: "{{ ldap_server_admin_password }}"
+  loop:
+    - "slapd/password1"
+    - "slapd/password2"
+  no_log: true
+
+- name: Installa slapd e gli strumenti client LDAP
+  ansible.builtin.apt:
+    name:
+      - slapd
+      - ldap-utils
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive

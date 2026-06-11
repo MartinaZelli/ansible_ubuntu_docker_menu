@@ -27,6 +27,7 @@ ip:
   app2_ip: "{{ lookup('env', 'APP2_IP') }}"
   db_ip: "{{ lookup('env', 'DB_IP') }}"
   lb_ip: "{{ lookup('env', 'LB_IP') }}"
+  ldap_ip: "{{ lookup('env', 'LDAP_IP') }}"
 
 db_conn:
   host: "{{ lookup('env', 'DB_HOST') }}"

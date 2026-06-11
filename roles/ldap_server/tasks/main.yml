@@ -1,0 +1,5 @@
+---
+
+- name: Installazione e preconfigurazione di slapd
+  ansible.builtin.import_tasks: install.yml
+  tags: [ldap_install]

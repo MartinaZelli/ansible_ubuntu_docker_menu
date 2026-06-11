@@ -14,6 +14,10 @@
       hosts:
         lb:
           ansible_host: "{{ ip.lb_ip }}"
+    ldap_servers:
+      hosts:
+        ldap:
+          ansible_host: "{{ ip.ldap_ip }}"
   vars:
     ansible_user: ubuntu
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
