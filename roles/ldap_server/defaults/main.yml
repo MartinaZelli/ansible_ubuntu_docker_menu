@@ -1,10 +1,18 @@
 ---
-# group_vars/ldap_servers.yml
+
 ldap_server_admin_password: "{{ lookup('env', 'LDAP_SERVER_ADMIN_PASSWORD') }}"
 
-# roles/ldap_server/defaults/main.yml
+
 ldap_server_domain: "lab.home"          # da cui slapd deriva il base DN
 ldap_server_organization: "Lab"         # attributo o: della radice
 ldap_server_backend: "MDB"              # backend del database (LMDB)
 
 ldap_server_base_dn: "dc={{ ldap_server_domain.split('.') | join(',dc=') }}"
+
+# utenti da creare nella directory
+ldap_server_users:
+  - uid: mzelli
+    cn: "Martina Zelli"
+    sn: "Zelli"
+    mail: "mzelli@lab.home"
+    password_env: "LDAP_SERVER_USER_MZELLI_PASSWORD"

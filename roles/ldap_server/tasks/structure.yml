@@ -1,0 +1,32 @@
+---
+
+- name: Crea le unità organizzative (contenitori)
+  community.general.ldap_entry:
+    server_uri: "ldap://localhost/"
+    bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
+    bind_pw: "{{ ldap_server_admin_password }}"
+    dn: "ou={{ item }},{{ ldap_server_base_dn }}"
+    objectClass: organizationalUnit
+    attributes:
+      ou: "{{ item }}"
+  loop:
+    - people
+    - groups
+
+- name: Crea gli utenti (inetOrgPerson)
+  community.general.ldap_entry:
+    server_uri: "ldap://localhost/"
+    bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
+    bind_pw: "{{ ldap_server_admin_password }}"
+    dn: "uid={{ item.uid }},ou=people,{{ ldap_server_base_dn }}"
+    objectClass: inetOrgPerson
+    attributes:
+      uid: "{{ item.uid }}"
+      cn: "{{ item.cn }}"
+      sn: "{{ item.sn }}"
+      mail: "{{ item.mail }}"
+      userPassword: "{{ lookup('env', item.password_env) }}"
+  loop: "{{ ldap_server_users }}"
+  loop_control:
+    label: "{{ item.uid }}"
+  no_log: true

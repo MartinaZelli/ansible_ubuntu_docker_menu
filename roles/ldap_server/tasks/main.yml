@@ -3,3 +3,7 @@
 - name: Installazione e preconfigurazione di slapd
   ansible.builtin.import_tasks: install.yml
   tags: [ldap_install]
+
+- name: Crea struttura e utenti della directory
+  ansible.builtin.import_tasks: structure.yml
+  tags: [ldap_structure]
