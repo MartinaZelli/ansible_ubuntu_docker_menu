@@ -50,3 +50,30 @@
   loop: "{{ ldap_server_users }}"
   loop_control:
     label: "{{ item.uid }}"
+
+- name: Crea i gruppi POSIX (esistenza)
+  community.general.ldap_entry:
+    server_uri: "ldap://localhost/"
+    bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
+    bind_pw: "{{ ldap_server_admin_password }}"
+    dn: "cn={{ item.cn }},ou=groups,{{ ldap_server_base_dn }}"
+    objectClass: posixGroup
+    attributes:
+      cn: "{{ item.cn }}"
+      gidNumber: "{{ item.gid_number }}"
+  loop: "{{ ldap_server_groups }}"
+  loop_control:
+    label: "{{ item.cn }}"
+
+- name: Imposta i membri dei gruppi POSIX
+  community.general.ldap_attrs:
+    server_uri: "ldap://localhost/"
+    bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
+    bind_pw: "{{ ldap_server_admin_password }}"
+    dn: "cn={{ item.cn }},ou=groups,{{ ldap_server_base_dn }}"
+    state: exact
+    attributes:
+      memberUid: "{{ item.members }}"
+  loop: "{{ ldap_server_groups }}"
+  loop_control:
+    label: "{{ item.cn }}"

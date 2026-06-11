@@ -1,0 +1,54 @@
+---
+# roles/ldap_client/tasks/main.yml
+
+- name: Installa SSSD e i moduli LDAP/PAM/NSS
+  ansible.builtin.apt:
+    name:
+      - sssd
+      - sssd-ldap
+      - sssd-tools
+      - libpam-sss
+      - libnss-sss
+      - ldap-utils
+    state: present
+    update_cache: true
+
+- name: Leggi il certificato CA DAL SERVER LDAP
+  ansible.builtin.slurp:
+    src: "{{ ldap_client_ca_src }}"
+  delegate_to: "{{ ldap_client_server_host }}"   # <-- questo task gira sul SERVER
+  register: ldap_client_ca_slurp
+
+- name: Installa il certificato CA SUL CLIENT
+  ansible.builtin.copy:
+    content: "{{ ldap_client_ca_slurp.content | b64decode }}"
+    dest: "{{ ldap_client_ca_dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Risolvi il FQDN del server LDAP
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "{{ ldap_client_server_fqdn }}"
+    line: "{{ hostvars[ldap_client_server_host].ansible_host }} {{ ldap_client_server_fqdn }}"
+
+- name: Scrivi /etc/sssd/sssd.conf
+  ansible.builtin.template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+    owner: root
+    group: root
+    mode: "0600"          # OBBLIGATORIO: sssd rifiuta di partire se non è 0600 root:root
+  notify: Riavvia sssd
+
+- name: Leggi la configurazione PAM corrente
+  ansible.builtin.slurp:
+    src: /etc/pam.d/common-session
+  register: ldap_client_pam_common_session
+
+- name: Abilita SSSD e creazione automatica delle home in PAM
+  ansible.builtin.command: pam-auth-update --enable sssd --enable mkhomedir
+  when: "'pam_mkhomedir.so' not in (ldap_client_pam_common_session.content | b64decode)"
+  changed_when: true
+  notify: Riavvia sssd

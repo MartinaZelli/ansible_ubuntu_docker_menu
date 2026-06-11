@@ -17,3 +17,9 @@
   become: true
   roles:
     - ldap_server
+
+- name: Configura i client LDAP
+  hosts: ldap_clients
+  become: true
+  roles:
+    - ldap_client

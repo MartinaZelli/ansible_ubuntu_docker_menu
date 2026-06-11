@@ -1,0 +1,9 @@
+---
+ldap_client_domain: "lab.home"
+ldap_client_base_dn: "dc={{ ldap_client_domain.split('.') | join(',dc=') }}"
+ldap_client_server_fqdn: "ldap.{{ ldap_client_domain }}"   # ldap.lab.home
+ldap_client_server_host: "{{ groups['ldap_servers'][0] }}" # nome inventario del server
+ldap_client_ca_src: /etc/ldap/lab-ca.crt                   # dove sta sul SERVER
+ldap_client_ca_dest: /etc/ssl/certs/lab-ca.crt             # dove la mettiamo sul CLIENT
+ldap_client_ssh_password_auth: false                       # vedi nota sshd in fondo
+ldap_client_allowed_groups: devops                        # gruppi autorizzati all'accesso

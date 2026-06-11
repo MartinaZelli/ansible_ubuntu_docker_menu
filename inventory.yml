@@ -18,6 +18,13 @@
       hosts:
         ldap:
           ansible_host: "{{ ip.ldap_ip }}"
+    ldap_clients:
+      hosts:
+        lb:
+    # per un futuro potrei scrivere l'intero gruppo ldap_client così per dichiarare che l'intero gruppo è figlio dell'altro.
+    #ldap_clients:
+     # children:
+     #   lb_servers:
   vars:
     ansible_user: ubuntu
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'

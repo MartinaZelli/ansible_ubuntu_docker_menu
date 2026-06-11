@@ -1,0 +1,16 @@
+[sssd]
+config_file_version = 2
+services = nss, pam
+domains = {{ ldap_client_domain }}
+
+[domain/{{ ldap_client_domain }}]
+id_provider = ldap
+auth_provider = ldap
+ldap_uri = ldaps://{{ ldap_client_server_fqdn }}
+ldap_search_base = {{ ldap_client_base_dn }}
+ldap_tls_cacert = {{ ldap_client_ca_dest }}
+ldap_tls_reqcert = hard
+cache_credentials = true
+
+access_provider = simple
+simple_allow_groups = {{ ldap_client_allowed_groups }}
