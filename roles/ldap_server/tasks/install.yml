@@ -1,3 +1,5 @@
+---
+
 - name: Verifica che la password admin sia stata fornita
   ansible.builtin.assert:
     that:
@@ -31,6 +33,10 @@
     label: "{{ item.question }}"
 
 - name: Preconfigura la password admin di slapd
+ # NOTA: questo task risulta 'changed' anche quando nulla cambia, perché
+  # debconf non rilegge le password per confrontarle (idempotenza imperfetta).
+  # Innocuo: la password è già consumata da slapd all'install. Da rivedere
+  # con una guardia 'when: slapd non installato' se in futuro darà fastidio.
   ansible.builtin.debconf:
     name: slapd
     question: "{{ item }}"
@@ -46,6 +52,8 @@
     name:
       - slapd
       - ldap-utils
+      - python3-ldap
+      - python3-cryptography
     state: present
   environment:
     DEBIAN_FRONTEND: noninteractive

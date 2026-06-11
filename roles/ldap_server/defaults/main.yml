@@ -16,3 +16,16 @@ ldap_server_users:
     sn: "Zelli"
     mail: "mzelli@lab.home"
     password_env: "LDAP_SERVER_USER_MZELLI_PASSWORD"
+    uid_number: 10000          # ID utente Unix
+    gid_number: 10000          # ID gruppo primario
+    login_shell: /bin/bash
+
+# --- TLS ---
+ldap_server_tls_enabled: true
+ldap_server_fqdn: "ldap.{{ ldap_server_domain }}"   # ldap.lab.home (per i SAN)
+ldap_server_ca_key: /etc/ldap/lab-ca.key
+ldap_server_ca_cert: /etc/ldap/lab-ca.crt
+ldap_server_tls_key: /etc/ldap/ldap.key
+ldap_server_tls_cert: /etc/ldap/ldap.crt
+ldap_server_tls_csr: /etc/ldap/ldap.csr
+# Tengo tutto sotto /etc/ldap/ di proposito: è un percorso che il profilo AppArmor di slapd già consente in lettura

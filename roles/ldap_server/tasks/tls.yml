@@ -1,0 +1,83 @@
+---
+# ===== 1) La CA: l'autorità di fiducia (= il tuo openssl req -x509 per ca.crt) =====
+- name: Genera la chiave privata della CA
+  community.crypto.openssl_privatekey:
+    path: "{{ ldap_server_ca_key }}"
+    mode: "0600"
+
+- name: Genera la CSR della CA
+  community.crypto.openssl_csr:
+    path: /etc/ldap/lab-ca.csr
+    privatekey_path: "{{ ldap_server_ca_key }}"
+    common_name: "Lab Root CA"
+    basic_constraints: ["CA:TRUE"]
+    basic_constraints_critical: true
+    key_usage: [keyCertSign, cRLSign]
+    key_usage_critical: true
+    use_common_name_for_san: false
+
+- name: Crea il certificato auto-firmato della CA
+  community.crypto.x509_certificate:
+    path: "{{ ldap_server_ca_cert }}"
+    csr_path: /etc/ldap/lab-ca.csr
+    privatekey_path: "{{ ldap_server_ca_key }}"
+    provider: selfsigned
+    mode: "0644"
+
+# ===== 2) Il certificato del server (= i tuoi openssl genrsa/req/x509 -req con SAN) =====
+- name: Genera la chiave privata del server LDAP
+  community.crypto.openssl_privatekey:
+    path: "{{ ldap_server_tls_key }}"
+    group: openldap          # slapd gira come utente 'openldap' e deve leggerla
+    mode: "0640"
+
+- name: Genera la CSR del server LDAP (con i SAN)
+  community.crypto.openssl_csr:
+    path: "{{ ldap_server_tls_csr }}"
+    privatekey_path: "{{ ldap_server_tls_key }}"
+    common_name: "{{ ldap_server_fqdn }}"
+    subject_alt_name:
+      - "DNS:{{ ldap_server_fqdn }}"
+      - "DNS:ldap.local"
+      - "IP:{{ ansible_host }}"
+
+- name: Firma il certificato del server con la CA
+  community.crypto.x509_certificate:
+    path: "{{ ldap_server_tls_cert }}"
+    csr_path: "{{ ldap_server_tls_csr }}"
+    provider: ownca
+    ownca_path: "{{ ldap_server_ca_cert }}"
+    ownca_privatekey_path: "{{ ldap_server_ca_key }}"
+    mode: "0644"
+
+# ===== 3) Dico a slapd dove sono i certificati (= il tuo ldapmodify -Y EXTERNAL) =====
+- name: Configura il TLS in cn=config
+  community.general.ldap_attrs:
+    dn: cn=config
+    state: exact
+    attributes:
+      olcTLSCACertificateFile: "{{ ldap_server_ca_cert }}"
+      olcTLSCertificateFile: "{{ ldap_server_tls_cert }}"
+      olcTLSCertificateKeyFile: "{{ ldap_server_tls_key }}"
+  notify: Riavvia slapd
+
+# ===== 4) Abilito l'ascolto LDAPS sulla 636 (= il tuo sed su /etc/default/slapd) =====
+- name: Abilita il listener LDAPS in /etc/default/slapd
+  ansible.builtin.lineinfile:
+    path: /etc/default/slapd
+    regexp: '^SLAPD_SERVICES='
+    line: 'SLAPD_SERVICES="ldap:/// ldapi:/// ldaps:///"'
+  notify: Riavvia slapd
+
+# ===== 5) Il client locale si fida della CA + risolve il nome (= TLS_CACERT + /etc/hosts) =====
+- name: Configura il client LDAP locale a fidarsi della CA
+  ansible.builtin.lineinfile:
+    path: /etc/ldap/ldap.conf
+    regexp: '^TLS_CACERT'
+    line: "TLS_CACERT {{ ldap_server_ca_cert }}"
+
+- name: Risolvi il FQDN del server in locale (per i test TLS)
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '{{ ldap_server_fqdn }}'
+    line: "{{ ansible_host }} {{ ldap_server_fqdn }} ldap.local"
