@@ -20,12 +20,26 @@ ldap_server_users:
     gid_number: 10000          # ID gruppo primario
     login_shell: /bin/bash
 
+  - uid: esterno
+    cn: "Utente Esterno"
+    sn: "Esterno"
+    mail: "esterno@lab.home"
+    password_env: "LDAP_SERVER_USER_ESTERNO_PASSWORD"
+    uid_number: 10001
+    gid_number: 10001          # gruppo primario diverso da devops
+    login_shell: /bin/bash
+
 # gruppi da creare nella directory
 ldap_server_groups:
   - cn: devops
     gid_number: 10000        # = il gidNumber primario di mzelli -> risolve il warning
     members:
       - mzelli
+
+  - cn: esterni
+    gid_number: 10001
+    members:
+      - esterno
 # --- TLS ---
 ldap_server_tls_enabled: true
 ldap_server_fqdn: "ldap.{{ ldap_server_domain }}"   # ldap.lab.home (per i SAN)
