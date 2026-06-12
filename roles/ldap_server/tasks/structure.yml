@@ -14,7 +14,7 @@
     - groups
 
 
-- name: Crea gli utenti (inetOrgPerson)
+- name: Crea gli utenti (entry minima valida)
   community.general.ldap_entry:
     server_uri: "ldap://localhost/"
     bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
@@ -22,17 +22,14 @@
     dn: "uid={{ item.uid }},ou=people,{{ ldap_server_base_dn }}"
     objectClass: inetOrgPerson
     attributes:
-      uid: "{{ item.uid }}"
-      cn: "{{ item.cn }}"
-      sn: "{{ item.sn }}"
-      mail: "{{ item.mail }}"
-      userPassword: "{{ lookup('vars', item.password_var) }}"
+      uid: "{{ item.uid }}"      # RDN: deve esserci
+      cn: "{{ item.cn }}"        # MUST (ereditato da person)
+      sn: "{{ item.sn }}"        # MUST (ereditato da person)
   loop: "{{ ldap_server_users }}"
   loop_control:
     label: "{{ item.uid }}"
-  no_log: true
 
-- name: Aggiungi gli attributi POSIX agli utenti (per il login di sistema)
+- name: Gestisci attributi mutabili e classe POSIX
   community.general.ldap_attrs:
     server_uri: "ldap://localhost/"
     bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
@@ -40,16 +37,31 @@
     dn: "uid={{ item.uid }},ou=people,{{ ldap_server_base_dn }}"
     state: exact
     attributes:
-      objectClass:
-        - inetOrgPerson
-        - posixAccount
+      objectClass: [inetOrgPerson, posixAccount]
+      mail: "{{ item.mail }}"
       uidNumber: "{{ item.uid_number }}"
       gidNumber: "{{ item.gid_number }}"
       homeDirectory: "/home/{{ item.uid }}"
       loginShell: "{{ item.login_shell }}"
+      cn: "{{ item.cn }}"
+      sn: "{{ item.sn }}"
   loop: "{{ ldap_server_users }}"
   loop_control:
     label: "{{ item.uid }}"
+
+- name: Imposta/aggiorna la password degli utenti
+  community.general.ldap_attrs:
+    server_uri: "ldap://localhost/"
+    bind_dn: "cn=admin,{{ ldap_server_base_dn }}"
+    bind_pw: "{{ ldap_server_admin_password }}"
+    dn: "uid={{ item.uid }},ou=people,{{ ldap_server_base_dn }}"
+    state: exact
+    attributes:
+      userPassword: "{{ lookup('vars', item.password_var) }}"
+  loop: "{{ ldap_server_users }}"
+  loop_control:
+    label: "{{ item.uid }}"
+  no_log: true # no_log: true è importante per evitare di esporre le password nei log di Ansible, anche se sono già protette da vault
 
 - name: Crea i gruppi POSIX (esistenza)
   community.general.ldap_entry:

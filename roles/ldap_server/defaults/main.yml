@@ -22,7 +22,7 @@ ldap_server_users:
   - uid: esterno
     cn: "Utente Esterno"
     sn: "Esterno"
-    mail: "esterno@lab.home"
+    mail: "esterno58@lab.home"
     password_var: "vault_ldap_server_user_esterno_password"
     uid_number: 10001
     gid_number: 10001          # gruppo primario diverso da devops
