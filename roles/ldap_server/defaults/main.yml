@@ -1,7 +1,6 @@
 ---
 
-ldap_server_admin_password: "{{ lookup('env', 'LDAP_SERVER_ADMIN_PASSWORD') }}"
-
+ldap_server_admin_password: ""    # valore reale fornito da group_vars/ldap_servers/vars.yml (via vault)
 
 ldap_server_domain: "lab.home"          # da cui slapd deriva il base DN
 ldap_server_organization: "Lab"         # attributo o: della radice
@@ -15,7 +14,7 @@ ldap_server_users:
     cn: "Martina Zelli"
     sn: "Zelli"
     mail: "mzelli@lab.home"
-    password_env: "LDAP_SERVER_USER_MZELLI_PASSWORD"
+    password_var: "vault_ldap_server_user_mzelli_password"
     uid_number: 10000          # ID utente Unix
     gid_number: 10000          # ID gruppo primario
     login_shell: /bin/bash
@@ -24,7 +23,7 @@ ldap_server_users:
     cn: "Utente Esterno"
     sn: "Esterno"
     mail: "esterno@lab.home"
-    password_env: "LDAP_SERVER_USER_ESTERNO_PASSWORD"
+    password_var: "vault_ldap_server_user_esterno_password"
     uid_number: 10001
     gid_number: 10001          # gruppo primario diverso da devops
     login_shell: /bin/bash

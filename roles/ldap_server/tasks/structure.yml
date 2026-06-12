@@ -26,7 +26,7 @@
       cn: "{{ item.cn }}"
       sn: "{{ item.sn }}"
       mail: "{{ item.mail }}"
-      userPassword: "{{ lookup('env', item.password_env) }}"
+      userPassword: "{{ lookup('vars', item.password_var) }}"
   loop: "{{ ldap_server_users }}"
   loop_control:
     label: "{{ item.uid }}"

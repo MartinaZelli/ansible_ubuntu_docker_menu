@@ -1,0 +1,4 @@
+---
+ldap_server_admin_password: "{{ vault_ldap_server_admin_password }}"
+ldap_server_user_mzelli_password: "{{ vault_ldap_server_user_mzelli_password }}"
+ldap_server_user_esterno_password: "{{ vault_ldap_server_user_esterno_password }}"
