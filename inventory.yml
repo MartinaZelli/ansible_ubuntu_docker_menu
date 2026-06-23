@@ -1,30 +1,27 @@
-﻿all:
+﻿---
+all:
   children:
     app_servers:
       hosts:
         app:
-          ansible_host: "{{ ip.app1_ip }}"
-        app-2:
-          ansible_host: "{{ ip.app2_ip }}"
+          ansible_host: 192.168.1.72
+        app2:
+          ansible_host: 192.168.1.74
     db_servers:
       hosts:
         db:
-          ansible_host: "{{ ip.db_ip }}"
+          ansible_host: 192.168.1.73
     lb_servers:
       hosts:
         lb:
-          ansible_host: "{{ ip.lb_ip }}"
+          ansible_host: 192.168.1.75
     ldap_servers:
       hosts:
         ldap:
-          ansible_host: "{{ ip.ldap_ip }}"
+          ansible_host: 192.168.1.76
     ldap_clients:
       hosts:
         lb:
-    # per un futuro potrei scrivere l'intero gruppo ldap_client così per dichiarare che l'intero gruppo è figlio dell'altro.
-    #ldap_clients:
-     # children:
-     #   lb_servers:
   vars:
     ansible_user: ubuntu
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
