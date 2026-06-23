@@ -369,3 +369,243 @@ che su LDAP era manuale.
 *Companion di `teoria_active_directory.md`. Tutto in rete locale, solo software
 open-source. Dalla teoria LDAP a un dominio Active Directory funzionante, costruito
 a mano e compreso pezzo per pezzo.*
+
+# Approfondimento: attributi POSIX in AD + Troubleshooting SSSD
+
+Runbook della sessione: passare il client AD dall'**ID mapping algoritmico** alla
+lettura degli **attributi POSIX** (`uidNumber`/`gidNumber`) definiti in AD — per far
+combaciare gli UID con quelli di OpenLDAP. Include il **percorso di troubleshooting
+completo** (le piste sbagliate e la causa vera) e una guida al **debug di SSSD via
+log**, usato qui per la prima volta.
+
+Companion di `teoria_active_directory.md` e `pratica_active_directory.md`.
+
+**Risultato finale:** `id mzelli@ad.lab.home` → `uid=10000 gid=10000(devops)`
+(gli stessi numeri del mondo OpenLDAP).
+
+---
+
+## 1. Il concetto
+
+Due strategie per tradurre il SID di AD in UID/GID Unix:
+
+- **ID mapping algoritmico** (`ldap_id_mapping = True`, default del provider `ad`):
+  SSSD calcola l'UID dal RID del SID. Zero amministrazione, numeri grandi.
+- **Attributi POSIX** (`ldap_id_mapping = False`): SSSD legge `uidNumber`/`gidNumber`
+  espliciti dagli oggetti AD (possibili grazie a `--use-rfc2307` al provisioning).
+  Controlli i numeri, ma devi popolarli.
+
+Due regole chiave (dai manuali SSSD):
+- Quando l'ID mapping è **attivo**, `uidNumber`/`gidNumber` vengono **ignorati**.
+  Quindi per usare i POSIX serve scrivere gli attributi **e** spegnere il mapping.
+- Cambiare la strategia di mapping richiede di **azzerare la cache** di SSSD
+  (non sa cambiare un ID a caldo).
+- Con `ldap_id_mapping = False`, un utente **senza** `uidNumber`/`gidNumber` diventa
+  **invisibile** su Linux. Anche il gruppo primario deve avere un `gidNumber`,
+  altrimenti torna l'errore `cannot find name for group ID`.
+
+---
+
+## 2. La procedura (quella che funziona)
+
+### Sul DC (`dc1`) — scrivere gli attributi POSIX
+
+```bash
+# il gruppo prende un GID
+sudo samba-tool group edit devops
+#   aggiungi:  gidNumber: 10000
+
+# l'utente prende i suoi attributi POSIX (stessi valori di OpenLDAP)
+sudo samba-tool user edit mzelli
+#   aggiungi:
+#     uidNumber: 10000
+#     gidNumber: 10000            # gruppo primario = devops
+#     unixHomeDirectory: /home/mzelli
+#     loginShell: /bin/bash
+```
+`samba-tool ... edit` apre l'oggetto in formato **LDIF** nell'editor ($EDITOR=vim) —
+lo stesso formato usato per slapd. Verifica:
+```bash
+sudo samba-tool user show mzelli | grep -iE 'uidNumber|gidNumber|unixHome|loginShell'
+sudo samba-tool group show devops | grep -i gidNumber
+```
+
+### Sul client (`lb`) — spegnere l'ID mapping
+
+> **PREREQUISITO scoperto a caro prezzo:** l'host deve conoscere il proprio **FQDN**
+> (vedi Troubleshooting). Su `/etc/hosts`:
+> ```
+> 192.168.1.75   menu-lb.ad.lab.home   menu-lb
+> ```
+> `hostname -f` deve dare `menu-lb.ad.lab.home`.
+
+In `/etc/sssd/sssd.conf`, sezione `[domain/ad.lab.home]`:
+```ini
+ldap_id_mapping = False
+```
+Poi azzerare **entrambe** le cache e riavviare:
+```bash
+sudo systemctl stop sssd
+sudo rm -rf /var/lib/sss/db/* /var/lib/sss/mc/*
+sudo systemctl start sssd
+id mzelli@ad.lab.home        # -> uid=10000 gid=10000(devops)
+su - mzelli@ad.lab.home      # home ora: /home/mzelli (da unixHomeDirectory)
+```
+
+---
+
+## 3. TROUBLESHOOTING — il percorso completo (piste sbagliate incluse)
+
+**Sintomo:** dopo aver messo `ldap_id_mapping = False`, `id mzelli@ad.lab.home`
+restituiva ancora l'UID calcolato (`1494601103`) e `gid=domain users`, non `10000`.
+
+Il metodo è stato **eliminazione per esclusione**: un sospetto alla volta, verificato
+e scartato, finché i log non hanno dato la verità.
+
+| # | Ipotesi | Verifica | Esito |
+|---|---------|----------|-------|
+| 1 | La riga `False` non è salvata | `grep -n ldap_id_mapping sssd.conf` | C'è, riga 17 → **scartata** |
+| 2 | Cache `mc/` non svuotata | `rm -rf db/* mc/*` | Ancora vecchio UID → **scartata** |
+| 3 | Riga nella sezione sbagliata (`[sssd]` invece di `[domain]`) | `grep -nE '^\[|ldap_id_mapping'` | È in `[domain/ad.lab.home]` → **scartata** |
+| 4 | Override in `/etc/sssd/conf.d/` | `grep -rn ldap_id_mapping /etc/sssd/` | Nessun override → **scartata** |
+| 5 | Permessi del file errati | `ls -l sssd.conf` | `0600 root:root` ok → **scartata** |
+| 6 | Cache testarda / processo | `rm -rf` + reboot | Ancora vecchio → **scartata** |
+| 7 | Ticket Kerberos scaduto (giorni passati) | l'`id` NON usa il ticket utente (usa il keytab di macchina) | concettualmente **scartata**, ma ha spinto a guardare il keytab |
+| 8 | Rapporto Kerberos macchina rotto | `kinit -k 'MENU-LB$@...'` + `klist -k` | keytab valido, join sano → **scartata** |
+| 9 | **FQDN mancante** | `hostname -f` dava `menu-lb` (non FQDN) | **Problema reale**, corretto |
+| 10 | **Global Catalog senza attributi POSIX** | log del backend con debug 9 | **CAUSA VERA** (vedi sotto) |
+
+### La causa vera (dai log)
+
+Riga decisiva nel log del backend, allo startup di SSSD:
+```
+[ad_disable_gc] POSIX attributes were requested but are not present on the
+server side. Global Catalog lookups will be disabled
+```
+
+**Spiegazione:** il provider `ad` di SSSD, per default, cerca gli attributi POSIX nel
+**Global Catalog** (porta **3268**) — non nell'LDAP normale (389). Samba **non
+pubblica** gli attributi POSIX nel Global Catalog di default. Quindi:
+1. SSSD chiede `uidNumber`/`gidNumber` al GC → non li trova;
+2. SSSD **disabilita da solo il Global Catalog** e ricade sull'LDAP standard (389);
+3. sulla 389 gli attributi **ci sono** → legge `uidNumber: 10000`.
+
+**Perché prima non scattava:** senza l'**FQDN** corretto (pista #9), le query di SSSD
+verso il DC non andavano a buon fine, e SSSD restava bloccato sul mapping da SID
+senza arrivare alla scoperta "GC vuoto → uso la 389". Corretto l'FQDN, al successivo
+riavvio pulito la catena si è sbloccata: query ok → GC senza POSIX → fallback su 389
+→ `uid=10000`. **Cause concatenate**: l'FQDN era il prerequisito, il GC il meccanismo.
+
+> Nota: non è servita la riga `ad_enable_gc = False` (che forza l'uso della 389):
+> SSSD l'ha fatto da solo (`ad_disable_gc`). Se mai servisse forzarlo a mano, è quella
+> l'opzione, in `[domain/...]`.
+
+### Lezioni di metodo
+
+- **Eliminazione ordinata**: file → sezione → permessi → cache → join → keytab →
+  FQDN → log. Una pista alla volta, verificata.
+- **A un certo punto si smette di indovinare e si leggono i log.** La verità era lì,
+  scritta (`ad_disable_gc`).
+- Le cause reali sono spesso **concatenate** e non dove sembrano (qui: un hostname).
+- L'errore visibile fin dall'inizio (`gid=domain users` invece di `devops`) era già
+  un indizio: indicava che SSSD NON leggeva gli attributi dell'utente.
+
+---
+
+## 4. DEBUG DI SSSD — come si legge cosa fa il demone
+
+Strumento nuovo di questa sessione. SSSD è "silenzioso" di default: per capire *perché*
+fa qualcosa, si alza il livello di debug e si leggono i log.
+
+### Dove sono i log
+`/var/log/sssd/` — un file per componente:
+| File | Contenuto |
+|------|-----------|
+| `sssd.log` | il monitor principale |
+| `sssd_<dominio>.log` (es. `sssd_ad.lab.home.log`) | **il backend** — quello che conta: query al DC, mapping, attributi |
+| `sssd_nss.log` | risoluzione identità (NSS) |
+| `sssd_pam.log` | autenticazione (PAM) |
+
+### I livelli di debug
+Da **0** (solo errori critici) a **9** (tutto, verbosissimo). Si imposta:
+- a runtime: `sudo sssctl debug-level 9` (e `... 0` per riabbassare);
+- in modo persistente: `debug_level = 9` dentro una sezione di `sssd.conf`.
+
+### Il workflow di debug
+```bash
+sudo sssctl debug-level 9          # alza il dettaglio
+sudo systemctl restart sssd        # applica
+sudo sss_cache -E                  # invalida la cache (forza query fresche)
+id mzelli@ad.lab.home              # RIPRODUCI il problema
+sudo tail -60 /var/log/sssd/sssd_ad.lab.home.log   # LEGGI il backend
+sudo sssctl debug-level 0          # RIABBASSA (a 9 i log esplodono)
+sudo systemctl restart sssd
+```
+
+### Come si legge una riga di log
+```
+(2026-06-23 18:20:57): [be[ad.lab.home]] [ad_disable_gc] (0x3f7c0): POSIX attributes...
+   timestamp            componente       funzione        livello   messaggio
+```
+- `[be[...]]` = *back end* del dominio (il processo che parla col DC).
+- `[nome_funzione]` = dove, nel codice, succede la cosa — utile per cercare la causa.
+- `(0xNNNN)` = bitmask del livello; `0x0020`/`0x0040` sono messaggi di severità alta
+  (errori/fallimenti) — sono quelli da cercare per primi.
+
+### `sssctl` — il coltellino svizzero (pacchetto `sssd-tools`)
+```bash
+sudo sssctl config-check                 # valida sssd.conf (come 'netplan generate')
+sudo sssctl user-checks mzelli@ad.lab.home   # risolve un utente bypassando cache
+sudo sssctl domain-status ad.lab.home     # stato del dominio/connessione
+sudo sssctl debug-level [0-9]             # livello di log a runtime
+```
+
+**Principio generale:** quando una config è corretta ma il comportamento non cambia,
+**non indovinare — strumenta e osserva**. I log sono la fonte di verità.
+
+---
+
+## 5. Problema secondario (non bloccante): Dynamic DNS
+
+Nei log comparivano ripetuti:
+```
+nsupdate child failed ... Dynamic DNS update failed
+```
+È SSSD che prova a registrare il proprio record DNS sul DC via update dinamico
+(GSS-TSIG) e fallisce per permessi. **Non** tocca login né identità (`id`/`su`
+funzionano). Si silenzia, se dà fastidio, con `dyndns_update = false` in
+`[domain/ad.lab.home]`. Rifinitura, non urgenza.
+
+---
+
+## 6. Specchietto — sigle e termini di questa sessione
+
+| Termine | Significato |
+|---------|-------------|
+| **ID mapping (algoritmico)** | SSSD calcola UID/GID dal SID (`ldap_id_mapping=True`). |
+| **Attributi POSIX** | `uidNumber`/`gidNumber`/`unixHomeDirectory`/`loginShell` letti da AD (`ldap_id_mapping=False`). |
+| **Global Catalog (GC)** | Indice a livello di foresta, porta **3268**. SSSD vi cerca i POSIX per default; Samba non ce li mette → fallback su 389. |
+| **LDAP standard** | Porta **389**: l'oggetto completo, dove i POSIX *ci sono*. |
+| **`ad_enable_gc`** | Opzione SSSD per (dis)abilitare l'uso del GC. SSSD può disabilitarlo da solo (`ad_disable_gc`). |
+| **keytab** | `/etc/krb5.keytab`: chiavi della MACCHINA per autenticarsi al DC senza password. |
+| **FQDN** | Nome completo (`menu-lb.ad.lab.home`); senza, AD non deduce il dominio della macchina. |
+| **`sssctl`** | Tool di diagnostica di SSSD (config-check, user-checks, debug-level). |
+| **debug_level** | Verbosità dei log SSSD, 0–9. |
+| **dyndns** | Aggiornamento DNS dinamico del client verso il DC (qui fallisce, ma è secondario). |
+| **cache SSSD** | `/var/lib/sss/db/` (su disco) + `/var/lib/sss/mc/` (memoria). Da azzerare quando si cambia l'ID mapping. |
+
+---
+
+## 7. Da qui
+
+- **Automazione (Ansible)**: provisioning del DC + `realm join` idempotenti — l'ultimo
+  pezzo per chiudere il ciclo manuale→codice anche per l'AD.
+- **Rifiniture**: silenziare il dyndns; valutare `sudo` per un gruppo AD su `lb`.
+
+---
+
+*Companion di `teoria_active_directory.md` e `pratica_active_directory.md`. La sessione
+di troubleshooting più formativa del percorso: si è passati dal "tentare soluzioni" al
+"leggere i log", ed è lì che la causa (Global Catalog senza attributi POSIX, sbloccato
+dall'FQDN) è venuta allo scoperto.*
+
