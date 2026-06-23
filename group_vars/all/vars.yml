@@ -35,8 +35,8 @@ db_conn:
   name: "progetto"
   user: "user_progetto"
   volume_path: "{{ lookup('env', 'DB_VOLUME_PATH') }}"
-  pass: "{{ lookup('env', 'DB_PASSWORD') }}"
-  root_pass: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"
+  pass: "{{ vault_db_password }}"
+  root_pass: "{{ vault_db_root_password }}"
   destroy_volume: "{{ lookup('env', 'DB_DESTROY_VOLUME') | default('false', true) }}" # Imposta a true  per rimuovere fisicamente i dati all'avvio del cleanup
 
 lb_config:
@@ -52,8 +52,7 @@ lb_config:
   force_config: "{{ lookup('env', 'LB_FORCE_CONFIG') | default('false', true) }}" # false: se il file esiste non viene sovrascritto.
 
 app_config:
-  git_repo: "https://{{ lookup('env', 'GIT_TOKEN') }}@{{ lookup('env', 'GIT_REPO') }}"
-  git_version: "{{ lookup('env', 'GIT_VERSION') | default('main', true) }}"
+  git_repo: "https://{{ vault_git_token }}@{{ lookup('env', 'GIT_REPO') }}"
   port: "{{ lookup('env', 'APP_CONFIG_PORT') | default('8000', true) }}"
 
 haproxy_markers:
