@@ -86,3 +86,36 @@
     state: absent
   notify: Reload ssh
   when: ad_client_ssh_login_group | length == 0
+
+- name: Registra il plugin localauth di SSSD in krb5.conf
+  ansible.builtin.blockinfile:
+    path: /etc/krb5.conf
+    marker: "# {mark} ANSIBLE MANAGED - localauth"
+    block: |
+      [plugins]
+          localauth = {
+              module = sssd:{{ ad_client_sssd_localauth_plugin }}
+          }
+  when: ad_client_gssapi_enabled
+
+- name: Abilita GSSAPI nel server SSH
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/80-gssapi.conf
+    content: |
+      # Autenticazione Kerberos/GSSAPI: accetta il single sign-on dal bastion.
+      # Gestito da Ansible (ruolo ad_client).
+      GSSAPIAuthentication yes
+      GSSAPICleanupCredentials yes
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload ssh
+  when: ad_client_gssapi_enabled
+
+- name: Rimuovi la config GSSAPI dove non prevista
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/80-gssapi.conf
+    state: absent
+  notify: Reload ssh
+  when: not ad_client_gssapi_enabled

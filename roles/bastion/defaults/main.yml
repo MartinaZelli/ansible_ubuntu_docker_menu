@@ -1,0 +1,3 @@
+---
+# Dominio dei nodi interni verso cui il bastion abilita il salto SSO Kerberos.
+bastion_internal_domain: ad.lab.home

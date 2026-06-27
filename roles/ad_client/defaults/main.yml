@@ -20,3 +20,10 @@ ad_client_id_mapping: true
 # Login SSH via AD: solo i membri di questo gruppo possono autenticarsi
 # con la password di dominio (privilegio minimo). Vuoto = login AD disabilitato.
 ad_client_ssh_login_group: "devops@{{ ad_client_domain }}"
+
+# --- Single Sign-On Kerberos (GSSAPI) ---
+# Il nodo accetta ticket Kerberos dal dominio (abilita il salto SSO dal bastion).
+ad_client_gssapi_enabled: true
+# Plugin SSSD che mappa i principal Kerberos agli utenti locali
+# (mzelli@AD.LAB.HOME -> mzelli@ad.lab.home). Senza, GSSAPI fallisce su userok.
+ad_client_sssd_localauth_plugin: /usr/lib/x86_64-linux-gnu/sssd/modules/sssd_krb5_localauth_plugin.so

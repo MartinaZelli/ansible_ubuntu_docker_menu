@@ -4,3 +4,9 @@
   become: true
   roles:
     - ad_client
+
+- name: Configura il bastion host
+  hosts: bastion
+  become: true
+  roles:
+    - bastion

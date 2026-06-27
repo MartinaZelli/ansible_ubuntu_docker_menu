@@ -1,0 +1,14 @@
+---
+- name: Configura il client SSH per il single sign-on verso i nodi interni
+      # Salto SSO Kerberos verso i nodi interni del dominio.
+      # Gestito da Ansible (ruolo bastion). Vale per tutti gli utenti del bastion.
+  ansible.builtin.copy:
+    dest: /etc/ssh/ssh_config.d/10-bastion-sso.conf
+    content: |
+      Host *.{{ bastion_internal_domain }}
+          GSSAPIAuthentication yes
+          GSSAPIDelegateCredentials yes
+          PubkeyAuthentication no
+    owner: root
+    group: root
+    mode: "0644"
