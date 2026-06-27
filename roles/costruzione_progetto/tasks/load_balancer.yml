@@ -17,33 +17,13 @@
     - "{{ lb_config.frontend_port }}"
     - "{{ lb_config.stats_port }}"
 
-# 3. Generazione del file di configurazione partendo dal template Jinja2
-- name: load_balancer | Inizializza haproxy.cfg base se non esiste
+# 3. Genera l'INTERA configurazione di HAProxy da un unico template idempotente
+- name: load_balancer | Genera la configurazione completa di HAProxy
   ansible.builtin.template:
-    src: haproxy_base.cfg.j2
+    src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
     mode: '0644'
-    force: "{{ lb_config.force_config }}"
-  become: true
-  notify: "Riavvia HAProxy"
-
-# 2. Configura il backend FastAPI
-- name: load_balancer | Inietta backend FastAPI
-  ansible.builtin.blockinfile:
-    path: /etc/haproxy/haproxy.cfg
-    marker: "# {mark} {{ haproxy_markers.fastapi }}"
-    block: "{{ lookup('template', 'backend_app.cfg.j2') }}"
-    insertafter: EOF
-  become: true
-  notify: "Riavvia HAProxy"
-
-# 3. Configura il backend MySQL
-- name: load_balancer | Inietta backend MySQL
-  ansible.builtin.blockinfile:
-    path: /etc/haproxy/haproxy.cfg
-    marker: "# {mark} {{ haproxy_markers.mysql_monitor }}"
-    block: "{{ lookup('template', 'backend_db.cfg.j2') }}"
-    insertafter: EOF
+    validate: haproxy -c -f %s
   become: true
   notify: "Riavvia HAProxy"
 

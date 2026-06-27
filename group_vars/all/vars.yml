@@ -49,6 +49,7 @@ lb_config:
 
 app_config:
   git_repo: "https://{{ vault_git_token }}@{{ lookup('env', 'GIT_REPO') }}"
+  git_version: "{{ lookup('env', 'GIT_VERSION') | default('main', true) }}"
   port: "{{ lookup('env', 'APP_CONFIG_PORT') | default('8000', true) }}"
 
 haproxy_markers:

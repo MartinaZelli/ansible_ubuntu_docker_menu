@@ -1,19 +1,6 @@
 ---
-# PLAY 0: Cancellare le vecchie chiavi SSH per evitare problemi di connessione
-- name: "Preparazione SSH | Pulisci le vecchie impronte digitali"
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Rimuovi le vecchie chiavi SSH per tutti gli host dell'inventario
-      ansible.builtin.known_hosts:
-        name: "{{ hostvars[item]['ansible_host'] }}"
-        state: absent
-      changed_when: false
-      loop: "{{ groups['all'] }}"
-
 - name: "Configurazione Infrastruttura"
-  hosts: all
+  hosts: internal
   become: true
   roles:
     - costruzione_progetto

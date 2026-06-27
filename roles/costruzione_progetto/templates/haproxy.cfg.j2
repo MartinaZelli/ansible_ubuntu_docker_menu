@@ -1,0 +1,53 @@
+# ============================================================
+# haproxy.cfg - GESTITO INTERAMENTE DA ANSIBLE
+# Non modificare a mano: ogni run del playbook rigenera questo file.
+# ============================================================
+
+global
+    maxconn     {{ lb_config.maxconn }}
+    log         127.0.0.1:514 local0
+    log         127.0.0.1:514 local1 notice
+    user        haproxy
+    group       haproxy
+    pidfile     /run/haproxy.pid
+    daemon
+
+defaults
+    mode        http
+    option      httplog
+    option      dontlognull
+    log         global
+    timeout connect {{ lb_config.timeout_connect }}
+    timeout client  {{ lb_config.timeout_client }}
+    timeout server  {{ lb_config.timeout_server }}
+
+# FRONTEND: riceve il traffico web ed è l'unico esposto
+frontend main_frontend
+    bind *:{{ lb_config.frontend_port }}
+    mode http
+    option httplog
+    default_backend fastapi_backend
+
+# STATS FRONTEND: pannello di controllo
+frontend stats_frontend
+    bind *:{{ lb_config.stats_port }}
+    mode http
+    stats enable
+    stats uri {{ lb_config.stats_uri }}
+    stats refresh 10s
+    stats admin if TRUE
+
+# BACKEND FastAPI: bilancia sui server applicativi attivi
+backend fastapi_backend
+    mode http
+    balance {{ lb_config.algorithm }}
+    option httpchk GET {{ lb_config.check_path }}
+{% for server in groups['app_servers'] %}
+    server {{ hostvars[server]['inventory_hostname'] }} {{ hostvars[server]['ansible_host'] }}:8000 check
+{% endfor %}
+
+# BACKEND MySQL: monitoraggio del database
+backend mysql_monitor
+    mode tcp
+    option tcp-check
+    server db_server {{ hostvars[groups['db_servers'][0]]['ansible_host'] }}:{{ db_conn.port }} check port {{ db_conn.port }}
