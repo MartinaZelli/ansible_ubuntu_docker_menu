@@ -1,0 +1,44 @@
+---
+- name: Installa ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+- name: Politica di default - nega tutto in ingresso
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Politica di default - permetti tutto in uscita
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Permetti SSH dal bastion
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ firewall_bastion_ip }}"
+    port: "{{ firewall_ssh_port }}"
+    proto: tcp
+
+- name: Permetti SSH dall'IP di amministrazione (paracadute Tempo 1)
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ firewall_admin_ip }}"
+    port: "{{ firewall_ssh_port }}"
+    proto: tcp
+  when: firewall_admin_ip | length > 0
+
+- name: Rimuovi il paracadute admin (Tempo 2 - lockdown)
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ firewall_admin_ip }}"
+    port: "{{ firewall_ssh_port }}"
+    proto: tcp
+    delete: true
+  when: firewall_lockdown | default(false) and firewall_admin_ip | length > 0
+
+- name: Abilita ufw
+  community.general.ufw:
+    state: enabled

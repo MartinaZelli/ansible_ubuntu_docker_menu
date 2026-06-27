@@ -1,0 +1,6 @@
+---
+- name: Configura il firewall sui nodi interni
+  hosts: internal
+  become: true
+  roles:
+    - firewall

@@ -1,0 +1,8 @@
+---
+# IP del bastion: l'unica fonte SSH permessa a regime
+firewall_bastion_ip: 192.168.1.78
+# IP di amministrazione (il tuo PC): paracadute TEMPORANEO del Tempo 1.
+# Nel Tempo 2 lo metteremo a "" per rimuovere la regola.
+firewall_admin_ip: 192.168.1.23
+# Porte SSH
+firewall_ssh_port: 22
