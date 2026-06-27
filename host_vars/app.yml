@@ -1,0 +1,4 @@
+---
+# app è un nodo-servizio (app in Docker): nessun login umano con password.
+# Accesso: solo chiave + SSO Kerberos dal bastion.
+ad_client_ssh_login_group: ""

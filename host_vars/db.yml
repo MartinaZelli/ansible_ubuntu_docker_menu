@@ -1,0 +1,4 @@
+---
+# db è un nodo-servizio (MySQL): nessun login umano con password.
+# Accesso: solo chiave + SSO Kerberos dal bastion.
+ad_client_ssh_login_group: ""

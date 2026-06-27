@@ -5,8 +5,9 @@ all:
       hosts:
         app:
           ansible_host: 192.168.1.72
-        app2:
-          ansible_host: 192.168.1.74
+        # da decommentare quando avrai della RAM
+        # app2:
+        #   ansible_host: 192.168.1.74
     db_servers:
       hosts:
         db:
@@ -27,9 +28,14 @@ all:
         bastion:
           ansible_host: 192.168.1.78
         lb:
+        app:
+        db:
+        # app2: #da decommentare quando avrai della RAM,
     internal:
       hosts:
         lb:
+        app:
+        db:
       vars:
         ansible_ssh_common_args: >-
           -o StrictHostKeyChecking=no
