@@ -16,3 +16,4 @@ ad_client_packages:
   - samba-common-bin
   - krb5-user
   - packagekit
+ad_client_id_mapping: true

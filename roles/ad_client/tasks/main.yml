@@ -33,6 +33,15 @@
   when: ad_client_domain not in ad_client_realm_list.stdout
   changed_when: true
 
+- name: Imposta la politica di ID mapping in sssd.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sssd/sssd.conf
+    regexp: '^\s*ldap_id_mapping\s*='
+    line: "ldap_id_mapping = {{ ad_client_id_mapping }}"
+    insertafter: '^\[domain/{{ ad_client_domain }}\]'
+    state: present
+  notify: Reset SSSD cache
+
 - name: Controlla se mkhomedir è già abilitato
   ansible.builtin.command: grep -q pam_mkhomedir /etc/pam.d/common-session
   register: ad_client_mkhomedir
