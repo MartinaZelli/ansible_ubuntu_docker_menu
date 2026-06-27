@@ -1,185 +1,227 @@
-# Progetto: Infrastruttura Distribuita FastAPI & MySQL + Identità Centralizzata LDAP
+# Infrastruttura: stack applicativo dietro un bastion host con identità Active Directory
 
-Automazione Ansible per il deployment di un'architettura scalabile (database MySQL,
-nodi applicativi FastAPI, load balancer HAProxy) su Ubuntu 24.04 LTS, **estesa** con
-un layer di **identità centralizzata basato su LDAP** (OpenLDAP + SSSD) che gestisce
-autenticazione e autorizzazione degli utenti sulle macchine del parco.
-
-Il repository contiene quindi due workflow complementari:
-
-| Workflow | Scopo | Avvio | Segreti |
-|----------|-------|-------|---------|
-| **Application stack** | Deploy di DB, app FastAPI, HAProxy | `./avvio_servizi.sh` | `.env` |
-| **Identità LDAP** | Server LDAP + client SSSD | `./avvio_ldap.sh` | **Ansible Vault** |
+Automazione Ansible per il deployment di un'architettura a più nodi (MySQL, app
+FastAPI in Docker, load balancer HAProxy) su Ubuntu 24.04, protetta da un **bastion
+host** e integrata in un dominio **Active Directory** (Samba AD-DC): le persone
+accedono con la loro identità di dominio, i nodi interni sono raggiungibili solo
+attraverso il bastion, e il single sign-on Kerberos permette di saltare dal bastion
+ai nodi senza ridigitare credenziali.
 
 > Il provisioning delle VM (libvirt/KVM) è gestito da un repository Terraform separato
-> (`terraform_exercise`); questo repository si occupa solo della **configurazione**.
+> (`terraform_exercise`). Questo repository si occupa solo della **configurazione**.
+
+## I tre pilastri
+
+| Pilastro | Cosa fa | Playbook |
+|----------|---------|----------|
+| **Identità & accesso (AD)** | Join al dominio, login AD, SSO Kerberos, bastion | `ad.yml` |
+| **Sicurezza di rete** | Lockdown firewall: i nodi interni accettano SSH solo dal bastion | `firewall.yml` |
+| **Stack applicativo** | Deploy di MySQL, app FastAPI (Docker), HAProxy | `avvio_servizi.yml` (via `avvio_servizi.sh`) |
+
+> Esiste anche un **layer LDAP** (OpenLDAP + SSSD) come ramo di studio, ora **congelato**
+> (la VM è parcheggiata). I ruoli `ldap_server`/`ldap_client` restano nel repo per un
+> eventuale ripristino. Vedi `docs/` per i dettagli.
+
+---
+
+## Architettura
+
+### Il modello bastion
+
+```
+   IL TUO PC                  BASTION (.78)              NODI INTERNI
+  (utente AD)  --login AD-->  [ porta unica ]  --SSO-->  lb  (.75) HAProxy
+                              identita mzelli            app (.72) FastAPI/Docker
+                                                         db  (.73) MySQL
+```
+
+- **Il bastion e l'unica porta d'ingresso**: i nodi interni (`lb`, `app`, `db`)
+  accettano SSH **solo dal bastion** (firewall `ufw`, default deny).
+- **Identita per persona via AD**: si fa login come `mzelli@ad.lab.home` (account di
+  dominio, gruppo `devops`), non con una chiave anonima condivisa.
+- **Single sign-on Kerberos**: dal bastion si salta ai nodi (`ssh menu-app.ad.lab.home`)
+  senza credenziali — il ticket Kerberos viaggia con l'utente.
+
+> Nel lab la rete e piatta: l'isolamento lo fa il **firewall su ogni host**, non la
+> segmentazione di rete. In produzione si aggiungerebbe subnet/VLAN come seconda barriera.
+
+### Lo stack applicativo
+
+Micro-servizi isolati, ciascuno su un nodo dedicato:
+- **`db`**: MySQL in container Docker, espone 3306 **solo** ai nodi app + lb.
+- **`app`** (+ `app2` quando attiva): app FastAPI in Docker, espone la porta app
+  **solo** al load balancer.
+- **`lb`**: HAProxy nativo, bilancia il traffico HTTP verso i nodi app; pannello stats.
+
+I servizi si parlano tra loro **dentro** la cornice di sicurezza: il firewall apre le
+porte di servizio con privilegio minimo (solo le sorgenti che servono), pur tenendo i
+nodi murati all'accesso SSH diretto.
+
+---
+
+## I gruppi dell'inventory
+
+| Gruppo | Membri | Ruolo |
+|--------|--------|-------|
+| `ad_clients` | bastion, lb, app, db | nodi uniti al dominio AD (`ad_client`) |
+| `internal` | lb, app, db | nodi dietro il bastion (firewall + ProxyJump) |
+| `app_servers` | app (, app2) | nodi applicativi |
+| `db_servers` | db | nodi database |
+| `lb_servers` | lb | load balancer |
+
+> `app2` e commentata nell'inventory (parcheggiata per risparmiare RAM). Si riattiva
+> togliendo il commento qui e in `terraform`, poi rilanciando i playbook.
 
 ---
 
 ## Prerequisiti
 
 Sulla macchina di controllo:
-
-* **Ansible** >= 2.14 e **Python 3.x**.
-* **Collezioni Ansible**:
+- **Ansible** >= 2.14 e **Python 3.x**.
+- **Collezioni Ansible**:
   ```bash
-  ansible-galaxy collection install community.general   # moduli ldap_entry/ldap_attrs/debconf
-  ansible-galaxy collection install community.crypto     # generazione certificati TLS (layer LDAP)
+  ansible-galaxy collection install community.general   # ufw, debconf, blockinfile
+  ansible-galaxy collection install community.docker    # container e compose
   ```
-* **Accesso SSH** (chiave Ed25519) verso tutti i target. Il percorso della chiave
-  privata va indicato in `.env` (`PRIVATE_KEY_PATH`).
-* **Per il layer LDAP**: un file `.vault_pass` con la password del Vault (vedi sotto).
+- **Accesso SSH** (chiave Ed25519, `~/.ssh/id_archvm`) verso il bastion e — via
+  ProxyJump — verso i nodi interni.
+- **`~/.ssh/config`** configurato per il salto via bastion (vedi sotto).
+- **`.vault_pass`** con la password del Vault (per i segreti cifrati).
 
----
+### Il `~/.ssh/config` (accesso via bastion)
 
-## Architettura
+Perche Ansible e l'uso a mano raggiungano i nodi interni attraverso il bastion senza
+dipendere dall'ssh-agent, ogni nodo ha un blocco con **alias + IP** e `ProxyJump`:
 
-### A. Application stack (stack "menu")
+```ssh-config
+Host bastion 192.168.1.78
+    HostName 192.168.1.78
+    User ubuntu
+    IdentityFile ~/.ssh/id_archvm
 
-Approccio a micro-servizi isolati:
-* **Database**: container MySQL 8.0.
-* **Application Tier**: nodi FastAPI in un gruppo di scaling (`app_servers`).
-* **Load Balancing**: HAProxy (nativo) che bilancia il traffico verso le app e
-  monitora i backend con health check.
+Host menu-lb 192.168.1.75
+    HostName 192.168.1.75
+    User ubuntu
+    IdentityFile ~/.ssh/id_archvm
+    ProxyJump bastion
+# ... blocchi analoghi per menu-app (.72) e menu-db (.73) ...
 
-Applicazione: `https://github.com/MartinaZelli/menu_v2.0.git`
+# Login sul bastion come utente di dominio (per il flusso quotidiano)
+Host bastion-ad
+    HostName 192.168.1.78
+    User mzelli@ad.lab.home
+    PreferredAuthentications password
+    PubkeyAuthentication no
+    GSSAPIDelegateCredentials yes
+```
 
-### B. Layer di identità LDAP
-
-* **`ldap_server`** (host `ldap`): server OpenLDAP (`slapd`) con base DN
-  `dc=lab,dc=home`, utenti (`inetOrgPerson` + `posixAccount`), gruppi (`posixGroup`)
-  e **TLS** (CA privata, StartTLS sulla 389, LDAPS sulla 636).
-* **`ldap_client`** (host `lb`): configurazione **SSSD** che delega a LDAP la
-  risoluzione delle identità (NSS) e l'autenticazione (PAM) sul canale cifrato, con
-  autorizzazione per gruppo (solo i membri di `devops` possono accedere).
-
-Flusso di accesso: un utente che esiste **solo** in LDAP fa login su una macchina
-che non lo ha in `/etc/passwd`; SSSD interroga il server LDAP, verifica le
-credenziali (bind) e applica la policy di accesso.
+L'IP nel blocco `Host` e essenziale: Ansible si connette per IP, e cosi eredita il
+ProxyJump. Permessi: `chmod 600 ~/.ssh/config`.
 
 ---
 
 ## Configurazione
 
-### 1. File `.env` (stack applicativo)
+### File `.env` (stack applicativo)
 
-Crea `.env` nella root basandoti su `.env.example`. Contiene le configurazioni
-**non gestite dal Vault**: credenziali DB, IP degli host, porte, token Git e il
-percorso della chiave SSH (`PRIVATE_KEY_PATH`). È **gitignorato**.
-
-> Nota: i segreti del layer LDAP **non** stanno più nel `.env` — sono migrati nel
-> Vault (vedi punto 2).
-
-### 2. Ansible Vault (segreti del layer LDAP)
-
-I segreti LDAP (password admin della directory, hash delle password utente) sono
-cifrati con Ansible Vault e versionati nel repository in forma cifrata.
-
-**a) Password del Vault.** Crea il file `.vault_pass` (gitignorato) con una password
-robusta, e indicalo in `ansible.cfg`:
+Lo stack legge la configurazione da variabili d'ambiente, caricate da `.env` (NON
+versionato — contiene segreti). Parti da `.env.example`:
 
 ```bash
-openssl rand -base64 32 > .vault_pass
-chmod 600 .vault_pass
+cp .env.example .env    # poi compila i valori reali
 ```
 
-```ini
-# ansible.cfg  ->  sezione [defaults]
-vault_password_file = .vault_pass
-```
+Variabili chiave: `GIT_REPO`, `GIT_VERSION` (branch dell'app), `DB_HOST` (IP del nodo
+db), `LB_FRONTEND_PORT`, `LB_STATS_PORT`, `PRIVATE_KEY_PATH`. Le password e il token git
+stanno nel **Vault**, non nel `.env`.
 
-**b) Struttura vars/vault.** I segreti vivono in `group_vars/ldap_servers/`, diviso
-secondo la best practice in due file:
+### Ansible Vault (segreti)
 
-```
-group_vars/ldap_servers/
-├── vars.yml     # in chiaro: nomi leggibili che puntano ai segreti del vault
-└── vault.yml    # CIFRATO: i valori reali, con prefisso vault_
-```
+I segreti cifrati vivono in `group_vars/*/vault.yml`:
+- `group_vars/all/vault.yml`: token git, password DB.
+- `group_vars/ad_clients/vault.yml`: password di join al dominio AD.
 
-`vault.yml` (cifrato) contiene:
-```yaml
-vault_ldap_server_admin_password: "..."               # password admin LDAP (in chiaro)
-vault_ldap_server_user_mzelli_password: "{SSHA}..."   # hash SSHA
-vault_ldap_server_user_esterno_password: "{SSHA}..."  # hash SSHA
-```
-
-`vars.yml` (in chiaro) fa da strato di indirezione:
-```yaml
-ldap_server_admin_password: "{{ vault_ldap_server_admin_password }}"
-```
-
-Gli hash delle password utente vengono referenziati per nome dai `defaults` del
-ruolo (`password_var: "vault_..."`) e risolti con `lookup('vars', ...)`.
-
-**c) Gestione del Vault** (comandi utili):
 ```bash
-ansible-vault view group_vars/ldap_servers/vault.yml    # visualizza in chiaro
-ansible-vault edit group_vars/ldap_servers/vault.yml    # modifica (richiede $EDITOR)
-ansible-vault rekey group_vars/ldap_servers/vault.yml   # cambia la password del vault
-```
-
-> **Su Arch:** se `ansible-vault edit/create` lamenta `vi: File o directory non
-> esistente`, imposta l'editor: `EDITOR=vim ansible-vault edit ...` (o aggiungi
-> `export EDITOR=vim` al `~/.bashrc`).
-
-**d) Hash delle password utente.** In LDAP le password utente si memorizzano
-hashate. Genera l'hash sulla VM server (dove esiste `slappasswd`) e incollalo nel
-vault:
-```bash
-ssh -i ~/.ssh/id_archvm ubuntu@192.168.1.76 'slappasswd -h {SSHA}'
+ansible-vault edit group_vars/all/vault.yml          # modificare
+# .vault_pass + ansible.cfg (vault_password_file) per non digitare la password ogni volta
 ```
 
 ---
 
 ## Procedure di avvio
 
-Rendi eseguibili gli script una volta:
-`chmod +x avvio_servizi.sh avvio_ldap.sh cleanup_servizi.sh`
+L'ordine conta: **prima identita e firewall, poi lo stack** (cosi i nodi sono gia
+integrati e protetti quando l'app gira).
 
-### Stack applicativo
+### 1. Integrazione AD + SSO
+
 ```bash
-./avvio_servizi.sh                 # deploy completo (DB + app + LB)
-./avvio_servizi.sh -t db           # solo database
-./avvio_servizi.sh -t app          # solo applicazione
-./avvio_servizi.sh -t lb           # solo load balancer
-./avvio_servizi.sh --check         # dry-run (nessuna modifica applicata)
+ansible-playbook -i inventory.yml ad.yml
+```
+Unisce i nodi al dominio, configura ID mapping, login AD (solo bastion), GSSAPI/SSO, e
+la config client del bastion.
+
+### 2. Lockdown firewall (due tempi, anti-lockout)
+
+```bash
+# Tempo 1: SSH da bastion + tuo PC (paracadute). Verifica l'accesso.
+ansible-playbook -i inventory.yml firewall.yml
+# Tempo 2: rimuove il paracadute, resta solo il bastion.
+ansible-playbook -i inventory.yml firewall.yml -e firewall_lockdown=true
 ```
 
-### Layer LDAP
-```bash
-./avvio_ldap.sh                    # configura server LDAP + client SSSD
-```
-Lo script esporta le variabili del `.env` e lancia il playbook `ldap.yml`. La
-password del Vault viene letta automaticamente da `.vault_pass` (via `ansible.cfg`),
-quindi **non** serve `--ask-vault-pass`.
+### 3. Stack applicativo
 
-### Cleanup dello stack applicativo
 ```bash
-./cleanup_servizi.sh               # rimozione sicura e idempotente delle risorse
+./avvio_servizi.sh              # carica .env (set -a/source) e lancia avvio_servizi.yml
+./avvio_servizi.sh --tags lb    # solo il load balancer
+```
+
+### Cleanup dello stack
+
+```bash
+./cleanup_servizi.sh            # rimuove container/config dello stack applicativo
 ```
 
 ---
 
-## Il layer LDAP in dettaglio
+## Flusso quotidiano (accesso)
 
-### Ruolo `ldap_server`
+```bash
+ssh bastion-ad                  # login sul bastion come mzelli (password AD)
+ssh menu-app.ad.lab.home        # salto SSO al nodo, senza credenziali (ticket delegato)
+```
 
-| File | Responsabilità |
-|------|----------------|
-| `tasks/install.yml` | Installazione non interattiva di `slapd` via **preseed debconf** + dipendenze (`python3-ldap`, `python3-cryptography`). |
-| `tasks/structure.yml` | Crea `ou=people`/`ou=groups`, utenti (`inetOrgPerson`+`posixAccount`), gruppi (`posixGroup`). Pattern **esistenza** (`ldap_entry`) **+ attributi** (`ldap_attrs state: exact`). |
-| `tasks/tls.yml` | Genera CA privata e certificato server (`community.crypto`), configura il TLS in `cn=config`, abilita LDAPS. |
-| `handlers/main.yml` | Riavvio di `slapd`. |
+Stats di HAProxy: `http://192.168.1.75:<LB_STATS_PORT>/stats` (es. `:8080/stats`).
 
-### Ruolo `ldap_client`
+---
 
-| File | Responsabilità |
-|------|----------------|
-| `tasks/main.yml` | Installa SSSD, **recupera la CA dal server** (`slurp` + `delegate_to` -> `copy`), scrive `sssd.conf`, abilita PAM/`mkhomedir`. |
-| `templates/sssd.conf.j2` | Config SSSD: `id_provider`/`auth_provider = ldap`, `ldaps://`, `ldap_tls_cacert`, e l'autorizzazione `access_provider = simple` + `simple_allow_groups`. |
-| `handlers/main.yml` | Riavvio di `sssd`. |
+## I ruoli
+
+| Ruolo | Responsabilita |
+|-------|----------------|
+| `ad_client` | join AD, ID mapping, login AD per `devops`, GSSAPI + localauth (SSO) |
+| `bastion` | config client del bastion per il salto SSO ai nodi `*.ad.lab.home` |
+| `firewall` | cornice di sicurezza: default deny + SSH solo dal bastion (due tempi) |
+| `costruzione_progetto` | stack app: Docker, MySQL, deploy FastAPI, HAProxy (+ porte di servizio) |
+| `project_cleanup` | rimozione dello stack applicativo |
+| `ldap_server` / `ldap_client` | ramo LDAP, **congelato** (ripristino futuro) |
+
+### Nota di design: cornice vs servizi (firewall)
+
+Il firewall ha **una sola fonte di verita per tipo di regola**:
+- Il ruolo `firewall` possiede la **cornice**: SSH-solo-dal-bastion, default deny, enable.
+- Il ruolo `costruzione_progetto` possiede le **porte di servizio**: 3306 (MySQL dai nodi
+  app), porta app (dal solo lb), 80/stats (HAProxy).
+
+Si applica `firewall` *prima*, poi lo stack aggiunge i suoi fori. Nessuna sovrapposizione.
+
+### Nota di design: HAProxy idempotente
+
+La config di HAProxy e generata da **un unico template** (`haproxy.cfg.j2`: global,
+defaults, frontend, backend dinamici sui server). Il task usa `validate: haproxy -c`:
+se la config e invalida, non viene applicata e HAProxy non viene riavviato con un file
+rotto. Idempotente per costruzione (nessun `force_config` da passare a mano).
 
 ---
 
@@ -187,99 +229,56 @@ quindi **non** serve `--ask-vault-pass`.
 
 ```
 .
-├── ansible.cfg                      # config globale (include vault_password_file)
-├── .env / .env.example              # variabili dello stack applicativo (gitignorato)
-├── .vault_pass                      # password del Vault (gitignorato)
-├── inventory.yml                    # host e gruppi
-│
-├── avvio_servizi.sh / .yml          # workflow: deploy stack applicativo
-├── cleanup_servizi.sh / .yml        # workflow: pulizia stack applicativo
-├── avvio_ldap.sh                    # workflow: layer LDAP
-├── ldap.yml                         # playbook LDAP (server + client)
-│
-├── group_vars
-│   ├── all.yml                      # variabili globali stack applicativo
-│   └── ldap_servers
-│       ├── vars.yml                 # riferimenti in chiaro ai segreti del vault
-│       └── vault.yml                # segreti LDAP CIFRATI
-│
-├── docs/                            # appunti / runbook di studio
-│
-└── roles
-    ├── costruzione_progetto/        # stack applicativo (DB, app, HAProxy)
-    ├── project_cleanup/             # rimozione idempotente delle risorse
-    ├── ldap_server/                 # server OpenLDAP (install, struttura, TLS)
-    │   ├── defaults/main.yml
-    │   ├── tasks/{main,install,structure,tls}.yml
-    │   └── handlers/main.yml
-    └── ldap_client/                 # client SSSD
-        ├── defaults/main.yml
-        ├── tasks/main.yml
-        ├── templates/sssd.conf.j2
-        └── handlers/main.yml
+├── ad.yml                  # playbook: integrazione AD + SSO
+├── firewall.yml            # playbook: lockdown firewall
+├── avvio_servizi.yml       # playbook: stack applicativo (hosts: internal)
+├── avvio_servizi.sh        # wrapper: carica .env e lancia
+├── cleanup_servizi.yml     # playbook: cleanup stack
+├── inventory.yml           # host e gruppi (IP = fonte unica)
+├── ansible.cfg             # config (inventory, vault_password_file)
+├── group_vars/
+│   ├── all/                # vars.yml + vault.yml (segreti app)
+│   └── ad_clients/         # vault.yml (password join AD)
+├── host_vars/
+│   ├── lb.yml, app.yml, db.yml   # login AD disabilitato (nodi-servizio)
+├── roles/
+│   ├── ad_client/  bastion/  firewall/
+│   ├── costruzione_progetto/     # templates/haproxy.cfg.j2, ecc.
+│   └── ldap_server/ ldap_client/ project_cleanup/
+└── docs/                   # runbook (bastion, AD, LDAP)
 ```
 
 ---
 
-## Modulo di Cleanup (`project_cleanup`)
+## Comandi utili (debug, verifica)
 
-Procedura dedicata alla rimozione dello stack applicativo, idempotente e sicura:
-* **Risorse**: elimina container Docker, volumi dati e directory di progetto.
-* **HAProxy**: rimuove chirurgicamente i backend dai file di configurazione usando i
-  marker, senza compromettere il resto.
-* **Firewall (UFW)**: ripulisce le regole create in fase di avvio.
-* **Resilienza**: verifiche preventive (`stat`) per ogni risorsa; se già rimossa, il
-  task viene saltato senza errori.
-
----
-
-## Comandi utili (debug, verifica, manutenzione)
-
-**Inventario e connettività**
 ```bash
-ansible-inventory -i inventory.yml --graph        # albero gruppi/host
-ansible -i inventory.yml ldap -m ping             # raggiungibilità (separa infra da config)
-```
+# Identita AD e SSO
+ansible -i inventory.yml app:db -m command -a "id mzelli@ad.lab.home" --become
+ssh bastion-ad   # poi: ssh menu-db.ad.lab.home 'whoami; klist'
 
-**Debug variabili**
-```bash
-ansible -i inventory.yml -m debug -a "var=db_conn.host" db
-```
+# Firewall: regole reali (vista ufw)
+ssh 192.168.1.75 'sudo ufw status verbose'
 
-**Verifica del layer LDAP** (server `ldap` = 192.168.1.76, client `lb` = 192.168.1.75)
-```bash
-# server: porte in ascolto e bind cifrato
-ssh -i ~/.ssh/id_archvm ubuntu@192.168.1.76 'ss -tlnp | grep -E "389|636"'
-ssh -i ~/.ssh/id_archvm ubuntu@192.168.1.76 \
-  'ldapwhoami -x -H ldaps://ldap.lab.home -D "uid=mzelli,ou=people,dc=lab,dc=home" -W'
+# Diretto VERO bloccato? (deve andare in timeout)
+ssh -F /dev/null -i ~/.ssh/id_archvm -o ConnectTimeout=10 ubuntu@192.168.1.75 'echo test'
 
-# client: risoluzione identità + login + autorizzazione
-ssh -i ~/.ssh/id_archvm ubuntu@192.168.1.75 'getent passwd mzelli'
-ssh -i ~/.ssh/id_archvm ubuntu@192.168.1.75 'id mzelli'
-# su - mzelli   -> consentito (membro di devops)
-# su - esterno  -> Permission denied (non in devops)
-```
-
-**Cache SSSD** (dopo modifiche lato server, sul client)
-```bash
-ssh -i ~/.ssh/id_archvm ubuntu@192.168.1.75 'sudo sss_cache -E'
-```
-
-**Sicurezza del Vault** (prima di committare)
-```bash
-head -1 group_vars/ldap_servers/vault.yml    # deve iniziare con $ANSIBLE_VAULT;1.1;AES256
-git status                                     # .vault_pass NON deve comparire
+# HAProxy: config valida + porte in ascolto
+ssh 192.168.1.75 'sudo haproxy -c -f /etc/haproxy/haproxy.cfg; sudo ss -tlnp | grep -E ":80|:8080"'
 ```
 
 ---
 
 ## Note operative e hardening futuri
 
-* **Provisioning VM**: gestito dal repo Terraform separato. Per testare i ruoli "da
-  zero" si ricrea il **disco** della VM (non solo il dominio):
-  `tofu apply -replace='libvirt_volume.vm_disk["ldap"]' -replace='libvirt_domain.vm["ldap"]'`.
-* **`ssh_pwauth: false`** sulle VM: il login LDAP via SSH con password è disabilitato
-  dal cloud-init; per i test si usa `su - <utente>`.
-* **Hardening da valutare**: password del Vault recuperata da un password manager
-  (script eseguibile come `vault_password_file`); passphrase sulla chiave della CA;
-  rimozione di `StrictHostKeyChecking=no` fuori dal lab.
+- **`StrictHostKeyChecking=no`** e comodo nel lab ma andrebbe rimosso in produzione
+  (gestendo le host key con `accept-new` o known_hosts versionati).
+- **IP admin DHCP**: la regola-paracadute del firewall usa l'IP del PC (`.23`), che e
+  dinamico — potrebbe non corrispondere se cambia.
+- **Codice morto da rimuovere**: i vecchi template HAProxy (`haproxy_base.cfg.j2`,
+  `backend_app.cfg.j2`, `backend_db.cfg.j2`) e `force_config` non sono piu usati.
+- **`avvio_servizi.sh`**: carica `.env` con `set -a; source` (robusto su spazi/virgolette).
+
+---
+
+*Lab a scopo di studio, rete locale, software open-source.*
