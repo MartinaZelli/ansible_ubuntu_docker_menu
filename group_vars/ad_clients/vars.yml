@@ -1,0 +1,2 @@
+---
+ad_client_join_password: "{{ vault_ad_join_password }}"

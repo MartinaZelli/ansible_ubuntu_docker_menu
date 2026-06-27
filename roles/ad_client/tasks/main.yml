@@ -1,0 +1,55 @@
+---
+
+# per questa configurazione sono obbligata ad usare command (che evito se possibile). introduco però registrer e changed_when per idempotenza.
+###
+- name: Preconfigura il realm Kerberos di default (debconf)
+  ansible.builtin.debconf:
+    name: krb5-config
+    question: krb5-config/default_realm
+    value: "{{ ad_client_realm }}"
+    vtype: string
+
+- name: Installa lo stack del client AD
+  ansible.builtin.apt:
+    name: "{{ ad_client_packages }}"
+    state: present
+    update_cache: true
+
+- name: Verifica che il dominio sia raggiungibile (discovery DNS) # precheck. se il dns non vede il DC fallisce qui.
+  ansible.builtin.command: realm discover {{ ad_client_domain }}
+  register: ad_client_discover
+  changed_when: false
+
+- name: Controlla se l'host è già membro del dominio
+  ansible.builtin.command: realm list
+  register: ad_client_realm_list
+  changed_when: false
+
+- name: Unisci l'host al dominio AD
+  ansible.builtin.command:
+    cmd: realm join --user={{ ad_client_join_user }} {{ ad_client_domain }}
+    stdin: "{{ ad_client_join_password }}"
+  no_log: true # impostato per non mostrare in chiaro la password, se il join fallisce impostarlo su false per debug
+  when: ad_client_domain not in ad_client_realm_list.stdout
+  changed_when: true
+
+- name: Controlla se mkhomedir è già abilitato
+  ansible.builtin.command: grep -q pam_mkhomedir /etc/pam.d/common-session
+  register: ad_client_mkhomedir
+  changed_when: false
+  failed_when: false
+
+- name: Abilita la creazione automatica delle home directory
+  ansible.builtin.command: pam-auth-update --enable mkhomedir
+  when: ad_client_mkhomedir.rc != 0
+  changed_when: true
+
+- name: Rileggi lo stato del realm
+  ansible.builtin.command: realm list
+  register: ad_client_realm_state
+  changed_when: false
+
+- name: Restringi il login al solo gruppo {{ ad_client_allowed_group }}
+  ansible.builtin.command: realm permit -g {{ ad_client_allowed_group }}@{{ ad_client_domain }}
+  when: (ad_client_allowed_group ~ '@' ~ ad_client_domain) not in ad_client_realm_state.stdout
+  changed_when: true

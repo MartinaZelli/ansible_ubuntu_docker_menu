@@ -1,0 +1,18 @@
+---
+# Dominio a cui unirsi (override-abile per host/gruppo)
+ad_client_domain: ad.lab.home
+ad_client_realm: AD.LAB.HOME
+# Solo i membri di questo gruppo potranno fare login
+ad_client_allowed_group: devops
+# Utente del dominio usato per autorizzare il join
+ad_client_join_user: Administrator
+# Stack del client AD
+ad_client_packages:
+  - realmd
+  - sssd
+  - sssd-tools
+  - sssd-ad
+  - adcli
+  - samba-common-bin
+  - krb5-user
+  - packagekit

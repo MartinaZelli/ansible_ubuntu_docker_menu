@@ -1,0 +1,6 @@
+---
+- name: Configura i client Active Directory
+  hosts: ad_clients
+  become: true
+  roles:
+    - ad_client
