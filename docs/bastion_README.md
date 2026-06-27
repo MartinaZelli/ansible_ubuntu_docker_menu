@@ -331,17 +331,155 @@ ssh 192.168.1.75 'realm list | grep -E "configured|permitted-groups"; id mzelli@
 
 ---
 
+## Autenticazione AD per le persone (login + SSO)
+
+Costruita l'infrastruttura (rete, firewall, join), il passo che dà *senso* al bastion è
+far entrare le persone con la loro identità di dominio. Due livelli distinti:
+
+- **Login AD sul bastion** (punto A): entrare *sul bastion* come `mzelli@ad.lab.home`,
+  con la password di dominio, invece che come `ubuntu` con una chiave condivisa.
+- **SSO Kerberos verso i nodi** (punto B): una volta sul bastion, raggiungere i nodi
+  interni *senza ridigitare nulla* — l'identità "viaggia" con un ticket Kerberos.
+
+### Login AD sul bastion (punto A)
+
+Il join AD da solo non basta: di default `sshd` accetta solo chiavi
+(`PasswordAuthentication no` da cloud-image), quindi gli utenti di dominio sono respinti
+con `Permission denied (publickey)`. Serve permettere il login a password **solo** agli
+utenti autorizzati, con privilegio minimo:
+
+```
+# /etc/ssh/sshd_config.d/70-ad-login.conf
+Match Group devops@ad.lab.home
+    PasswordAuthentication yes
+    KbdInteractiveAuthentication yes
+```
+
+`Match Group` applica la password **solo** a chi è nel gruppo; tutti gli altri
+(`ubuntu`, `root`) restano a sola chiave. Automatizzato nel ruolo `ad_client`
+(variabile `ad_client_ssh_login_group`), con `validate: sshd -t` anti-lockout.
+
+> **Modello pets vs cattle**: sul bastion il login AD è abilitato (le persone entrano
+> lì); su `lb` è *disabilitato* via `host_vars/lb.yml` (`ad_client_ssh_login_group: ""`),
+> perché è un nodo-servizio. Lo stesso ruolo produce due comportamenti, guidato da una
+> variabile a precedenza host.
+
+### SSO Kerberos verso i nodi interni (punto B)
+
+Lo scenario: login sul bastion come `mzelli` → `ssh menu-lb.ad.lab.home` entra **senza
+credenziali**. Funziona col **ticket Kerberos** (TGT) ottenuto al login, presentato ai
+nodi via GSSAPI. Tre pezzi (tutti nel codice):
+
+1. **Lato server** (`ad_client`, su ogni nodo): `GSSAPIAuthentication yes` in
+   `sshd_config.d/80-gssapi.conf` — il nodo accetta i ticket.
+2. **Mappatura nomi** (`ad_client`, `krb5.conf`): il plugin `localauth` di SSSD (vedi
+   imprevisto sotto).
+3. **Lato client** (ruolo `bastion`): config di sistema in `ssh_config.d/` che abilita
+   GSSAPI + delega del ticket verso `*.ad.lab.home`, per tutti gli utenti del bastion.
+
+---
+
+## Imprevisti e lezioni — login AD e SSO Kerberos
+
+### 9. `Permission denied (publickey)` per gli utenti di dominio
+
+- **Causa**: cloud-image disabilita le password (`PasswordAuthentication no` in
+  `60-cloudimg-settings.conf`); gli utenti AD si autenticano a password/Kerberos, quindi
+  vengono respinti prima ancora di coinvolgere AD.
+- **Soluzione**: `Match Group devops@...` con `PasswordAuthentication yes` (privilegio
+  minimo). NON riaprire le password per tutti.
+- **Lezione**: aprire *selettivamente* (per gruppo) invece che globalmente. E il nome del
+  gruppo è quello *come lo vede il sistema*: `devops@ad.lab.home`, non `devops`.
+
+### 10. Kerberos è feroce sui nomi: `lb` non esiste, `menu-lb` sì
+
+- **Sintomo**: `ssh lb.ad.lab.home` → `Could not resolve hostname`.
+- **Causa**: l'hostname reale è `menu-lb` (FQDN `menu-lb.ad.lab.home`); `lb` è solo la
+  chiave Terraform/Ansible, non un nome DNS.
+- **Lezione**: per il SSO Kerberos usare **sempre l'FQDN reale** (`menu-lb.ad.lab.home`),
+  mai l'IP né nomi corti/alias. Un ticket è emesso per `host/menu-lb.ad.lab.home` —
+  nome esatto.
+
+### 11. SSO: ticket valido ma `userok: result 0` (il cuore del punto B)
+
+- **Sintomo**: GSSAPI negozia, il ticket arriva (`Received some client credentials`), ma
+  `sshd` rifiuta: `mm_answer_gss_userok: sending result 0` → `user not authenticated`.
+- **Diagnosi**: `LogLevel DEBUG3` su `sshd` (l'equivalente di `sssctl debug-level 9`).
+  I log normali dicevano solo `Connection closed [preauth]`; il DEBUG3 ha rivelato il
+  `userok: result 0`.
+- **Causa**: mismatch tra il **principal Kerberos** `mzelli@AD.LAB.HOME` (realm
+  maiuscolo) e l'**utente locale** `mzelli@ad.lab.home` (dominio minuscolo,
+  `use_fully_qualified_names`). `sshd` non li mappava → "utente non autorizzato".
+- **Soluzione (pulita)**: il **plugin `localauth` di SSSD** in `krb5.conf`:
+  ```
+  [plugins]
+      localauth = {
+          module = sssd:/usr/lib/x86_64-linux-gnu/sssd/modules/sssd_krb5_localauth_plugin.so
+      }
+  ```
+  Insegna a Kerberos a chiedere a SSSD la corrispondenza principal→utente. SSSD lo sa
+  già. Nessun reload necessario (`krb5.conf` riletto a ogni auth).
+- **Vie sporche evitate**: regex `auth_to_local` in `krb5.conf` (fragili, illeggibili);
+  file `.k5login` per-utente (non scalano).
+- **Lezione**: quando l'errore è opaco, alza la verbosità della **fonte** (`sshd
+  DEBUG3`), non del client. Il log ha dato la causa esatta; le ipotesi precedenti
+  (keytab, reverse DNS, StrictAcceptorCheck) erano tutte sbagliate — e i dati le hanno
+  scartate una per una.
+
+### 12. Config client vs config server: due file diversi, facile confondersi
+
+- **`/etc/ssh/sshd_config.d/`** → config del **server** `sshd` (es. `GSSAPIAuthentication`
+  per *accettare* ticket). Sui nodi.
+- **`/etc/ssh/ssh_config.d/`** → config del **client** `ssh` (es.
+  `GSSAPIDelegateCredentials` per *inoltrare* il ticket saltando). Sul bastion.
+- **Lezione**: `sshd_config` ≠ `ssh_config`. Il SSO richiede entrambi i lati: il nodo che
+  accetta (server) e il bastion che delega (client). Per questo il lato client è un ruolo
+  separato (`bastion`), responsabilità distinta.
+
+### 13. La delega del ticket: entri ma `klist` dice "No credentials cache"
+
+- **Sintomo**: il salto funziona (`whoami` = `mzelli`), ma su `lb` `klist` →
+  `No credentials cache found`. Sei entrata, ma senza ticket → non potresti saltare oltre.
+- **Causa**: mancava `GSSAPIDelegateCredentials yes` lato client (il ruolo `bastion` non
+  ancora applicato — il secondo play del playbook mancava).
+- **Soluzione**: la config di sistema del ruolo `bastion` (con `DelegateCredentials yes`).
+- **Lezione**: "entrare" e "portarsi il ticket dietro" sono due cose diverse. La delega è
+  ciò che rende il SSO *a catena* (dal bastion a lb, e da lb oltre).
+
+### 14. Doppione `[plugins]` in krb5.conf dopo l'automazione
+
+- **Sintomo**: `grep -c "\[plugins\]" /etc/krb5.conf` → `2`.
+- **Causa**: la sezione era stata aggiunta a mano (`tee -a`, senza marker) durante il
+  test; poi il `blockinfile` di Ansible ne ha scritta una coi marker
+  `# BEGIN/END ANSIBLE MANAGED`.
+- **Soluzione**: rimuovere il blocco **manuale** (senza marker), tenere quello di Ansible
+  (così il ruolo lo gestisce in futuro). `grep -n` per mappare le righe, poi `sed` mirato.
+- **Lezione**: quando porti a codice qualcosa fatto a mano, controlla i **residui
+  manuali**. Il `blockinfile` con marker è gestibile; il blocco manuale senza marker
+  resterebbe orfano per sempre.
+
+---
+
 ## Stato finale
 
-Il modello bastion è completo:
+Il modello bastion è completo, end-to-end, da codice:
 - ✅ VM `bastion` (Terraform), nata già integrata nel dominio.
-- ✅ `ad_client`: join idempotente, login ristretto a `devops`, ID mapping uniforme.
+- ✅ `ad_client`: join idempotente, ID mapping uniforme, login AD per `devops`,
+  GSSAPI + localauth per il SSO.
+- ✅ ruolo `bastion`: config client per il salto SSO Kerberos ai nodi.
 - ✅ ProxyJump stabile via `~/.ssh/config` (no dipendenza dall'agent).
 - ✅ `firewall`: `lb` accetta SSH solo dal bastion; il diretto è murato.
 
-Da "SSH diretto a tutto dal mio PC" a "unica porta d'ingresso autenticata via AD, nodi
-interni protetti". Tutto costruito da codice: Terraform per le VM, Ansible per AD +
-accesso + firewall.
+Flusso quotidiano (zero `-o`, grazie a `~/.ssh/config` del PC con un alias `bastion-ad`):
+```bash
+ssh bastion-ad                        # login sul bastion come mzelli (password AD)
+ssh menu-lb.ad.lab.home               # salto SSO al nodo interno, ticket delegato
+```
+
+Da "SSH diretto a tutto dal mio PC con una chiave condivisa" a "unica porta d'ingresso,
+identità personale via AD, SSO ai nodi interni, nodi protetti dal firewall". Il flusso di
+una vera infrastruttura aziendale, ricostruito da zero: Terraform per le VM, Ansible per
+AD + accesso + firewall + SSO.
 
 ---
 
