@@ -1,0 +1,6 @@
+---
+# lb è un nodo-servizio (load balancer): nessun login umano interattivo.
+# Disabilita il login AD via SSH (sovrascrive il default del ruolo ad_client).
+# Accesso: solo via chiave, e solo dal bastion (firewall).
+# fatto per studio e verificare differenze fra i 2 approcci
+ad_client_ssh_login_group: ""

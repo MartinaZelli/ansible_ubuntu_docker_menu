@@ -17,3 +17,6 @@ ad_client_packages:
   - krb5-user
   - packagekit
 ad_client_id_mapping: true
+# Login SSH via AD: solo i membri di questo gruppo possono autenticarsi
+# con la password di dominio (privilegio minimo). Vuoto = login AD disabilitato.
+ad_client_ssh_login_group: "devops@{{ ad_client_domain }}"
