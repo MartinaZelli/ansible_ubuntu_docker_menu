@@ -35,6 +35,12 @@ all:
       hosts:
         dc1:
           ansible_host: 192.168.1.77
+    menu_stack:
+      hosts:
+        lb:
+        app:
+        db:
+        # app2:  # da riattivare insieme ad app_servers
     internal:
       hosts:
         lb:

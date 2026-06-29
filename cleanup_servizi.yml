@@ -1,6 +1,6 @@
 ---
 - name: "Distruggi Infrastruttura Progetto"
-  hosts: all
+  hosts: menu_stack
   become: true
   roles:
     - project_cleanup

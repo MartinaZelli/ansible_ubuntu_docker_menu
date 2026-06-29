@@ -1,8 +1,8 @@
 ---
 - name: database | Installa i pacchetti Docker minimi per il motore standalone
   ansible.builtin.apt:
-    name: "{{ pacchetti_db }}"
-    state: "{{ 'latest' if package_update | bool else 'present' }}"
+    name: "{{ costruzione_progetto_pacchetti_db }}"
+    state: "{{ 'latest' if costruzione_progetto_package_update | bool else 'present' }}"
   become: true
 
 - name: Aggiungi ubuntu al gruppo docker

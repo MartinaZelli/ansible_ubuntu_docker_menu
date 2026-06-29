@@ -2,8 +2,8 @@
 # 1. INSTALLAZIONE DELLO STACK APPLICATIVO
 - name: progetto | Installa i pacchetti richiesti per Docker, Git e moduli Python
   ansible.builtin.apt:
-    name: "{{ pacchetti_app }}"
-    state: "{{ 'latest' if package_update | bool else 'present' }}"
+    name: "{{ costruzione_progetto_pacchetti_app }}"
+    state: "{{ 'latest' if costruzione_progetto_package_update | bool else 'present' }}"
   become: true
 
 - name: Aggiungi ubuntu al gruppo docker
@@ -70,8 +70,8 @@
       - app
       - popola-db
     state: present
-    build: "{{ 'always' if modalita_developer else 'policy' }}"
-    recreate: "{{ 'always' if modalita_developer else 'auto' }}"
+    build: "{{ 'always' if costruzione_progetto_modalita_developer else 'policy' }}"
+    recreate: "{{ 'always' if costruzione_progetto_modalita_developer else 'auto' }}"
   become: true
   environment:
     HOST_IP: "{{ ansible_host }}"

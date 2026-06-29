@@ -1,6 +1,6 @@
 ---
 - name: "Configurazione Infrastruttura"
-  hosts: internal
+  hosts: menu_stack
   become: true
   roles:
     - costruzione_progetto

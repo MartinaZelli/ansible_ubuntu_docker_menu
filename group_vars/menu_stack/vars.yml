@@ -1,26 +1,9 @@
+---
+# Configurazione dello stack applicativo "menu" (lb + app + db).
+# Condivisa tra i ruoli costruzione_progetto (deploy) e project_cleanup (rimozione).
+
 progetto_docker: "progetto"
 destinazione: "/opt"
-modalita_developer: false # true: ricostruisce sempre l'immagine e ricrea i container, false: segue la policy del container.
-package_update: false
-
-utility_sistema_comuni:
-  - curl
-  - htop
-  - ufw
-
-# Pacchetti APT nativi per Ubuntu 24.04 LTS necessari a far girare Docker e Ansible Docker Modules
-pacchetti_app:
-  - git
-  - docker.io
-  - docker-compose-v2
-  - docker-buildx
-  - python3-pip
-  - python3-docker
-  - python3-setuptools
-
-pacchetti_db:
-  - docker.io
-  - python3-docker
 
 db_conn:
   host: "{{ lookup('env', 'DB_HOST') }}"
@@ -30,14 +13,12 @@ db_conn:
   volume_path: "{{ lookup('env', 'DB_VOLUME_PATH') }}"
   pass: "{{ vault_db_password }}"
   root_pass: "{{ vault_db_root_password }}"
-  destroy_volume: "{{ lookup('env', 'DB_DESTROY_VOLUME') | default('false', true) }}" # Imposta a true  per rimuovere fisicamente i dati all'avvio del cleanup
+  destroy_volume: "{{ lookup('env', 'DB_DESTROY_VOLUME') | default('false', true) }}"
 
 lb_config:
-  # --- parametri dell'app (menu): restano da .env, cambieranno col rifacimento ---
   frontend_port: "{{ lookup('env', 'LB_FRONTEND_PORT') }}"
   stats_port: "{{ lookup('env', 'LB_STATS_PORT') }}"
   check_path: "{{ lookup('env', 'LB_CHECK_PATH') }}"
-  # --- tuning HAProxy infrastrutturale: stabile, valori diretti ---
   stats_uri: /stats
   maxconn: 20000
   timeout_connect: 5000

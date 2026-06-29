@@ -1,0 +1,27 @@
+# Valori di default del ruolo costruzione_progetto.
+# Sovrascrivibili da group_vars/host_vars se serve.
+
+# Ricostruisce sempre immagine e container (true) o segue la policy del container (false)
+costruzione_progetto_modalita_developer: false
+costruzione_progetto_package_update: false
+
+# Utility di base installate su tutti i nodi dello stack
+costruzione_progetto_utility_sistema_comuni:
+  - curl
+  - htop
+  - ufw
+
+# Pacchetti per i nodi applicativi (Docker + tooling per i moduli Ansible Docker)
+costruzione_progetto_pacchetti_app:
+  - git
+  - docker.io
+  - docker-compose-v2
+  - docker-buildx
+  - python3-pip
+  - python3-docker
+  - python3-setuptools
+
+# Pacchetti minimi per il nodo database (motore Docker standalone)
+costruzione_progetto_pacchetti_db:
+  - docker.io
+  - python3-docker

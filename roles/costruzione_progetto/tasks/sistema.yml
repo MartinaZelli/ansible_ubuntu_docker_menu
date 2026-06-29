@@ -7,6 +7,6 @@
 
 - name: sistema | Installa i pacchetti richiesti per Docker e Git
   ansible.builtin.apt:
-    name: "{{ utility_sistema_comuni }}"
-    state: "{{ 'latest' if package_update | bool else 'present' }}"
+    name: "{{ costruzione_progetto_utility_sistema_comuni }}"
+    state: "{{ 'latest' if costruzione_progetto_package_update | bool else 'present' }}"
   become: true
