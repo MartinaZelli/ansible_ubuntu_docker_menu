@@ -1,0 +1,25 @@
+---
+# Pacchetti necessari per un Domain Controller Samba AD.
+# Lista derivata dal DC reale (samba 4.19.5 su Ubuntu 24.04).
+domain_controller_packages:
+  - samba
+  - samba-ad-dc
+  - samba-ad-provision
+  - winbind
+  - krb5-user
+  - krb5-config
+  - libnss-winbind
+  - libpam-winbind
+  - samba-dsdb-modules
+  - samba-vfs-modules
+
+# Parametri del dominio: di default vuoti, OBBLIGATORI da host_vars.
+domain_controller_realm: ""
+domain_controller_domain: ""
+domain_controller_admin_password: ""
+domain_controller_dns_forwarder: "8.8.8.8"
+
+# Utente di test creato sul DC (per la prova)
+domain_controller_test_user: "testuser"
+domain_controller_test_user_password: "UserPass123!"
+domain_controller_test_user_uid: 10000

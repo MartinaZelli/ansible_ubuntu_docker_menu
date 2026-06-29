@@ -39,6 +39,16 @@
     delete: true
   when: firewall_lockdown | default(false) and firewall_admin_ip | length > 0
 
+- name: Apri le porte di servizio dichiarate dal nodo
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.from_ip | default('any') }}"
+  loop: "{{ firewall_service_rules }}"
+  loop_control:
+    label: "{{ item.port }}/{{ item.proto }} da {{ item.from_ip | default('any') }}"
+
 - name: Abilita ufw
   community.general.ufw:
     state: enabled

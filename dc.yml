@@ -1,0 +1,6 @@
+---
+- name: Provisioning Domain Controller Samba AD
+  hosts: domain_controllers
+  become: true
+  roles:
+    - domain_controller

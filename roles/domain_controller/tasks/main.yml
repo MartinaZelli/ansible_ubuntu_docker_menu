@@ -1,0 +1,155 @@
+---
+- name: Verifica che i parametri del dominio siano definiti
+  ansible.builtin.assert:
+    that:
+      - domain_controller_realm | length > 0
+      - domain_controller_domain | length > 0
+      - domain_controller_admin_password | length > 0
+    fail_msg: >-
+      Parametri del dominio mancanti. Definisci domain_controller_realm,
+      domain_controller_domain e domain_controller_admin_password in
+      host_vars/<nodo>.yml prima di eseguire il ruolo.
+    success_msg: "Parametri del dominio presenti (realm: {{ domain_controller_realm }})"
+
+- name: Installa i pacchetti Samba AD-DC
+  ansible.builtin.apt:
+    name: "{{ domain_controller_packages }}"
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ferma e disabilita i servizi standalone in conflitto col DC
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+    masked: true
+  loop:
+    - smbd
+    - nmbd
+    - winbind
+  become: true
+
+- name: Verifica se il dominio è già stato provisionato
+  ansible.builtin.stat:
+    path: /var/lib/samba/private/sam.ldb
+  register: domain_controller_samdb
+  become: true
+
+- name: Rimuovi lo smb.conf di default (il provision lo rigenera)
+  ansible.builtin.file:
+    path: /etc/samba/smb.conf
+    state: absent
+  when: not domain_controller_samdb.stat.exists
+  become: true
+
+- name: Provisiona il dominio Active Directory
+  ansible.builtin.command:
+    cmd: >-
+      samba-tool domain provision
+      --server-role=dc
+      --use-rfc2307
+      --dns-backend=SAMBA_INTERNAL
+      --realm={{ domain_controller_realm }}
+      --domain={{ domain_controller_domain }}
+      --adminpass={{ domain_controller_admin_password }}
+    creates: /var/lib/samba/private/sam.ldb
+  when: not domain_controller_samdb.stat.exists
+  become: true
+  no_log: true
+
+- name: Copia il krb5.conf generato dal provision in /etc
+  ansible.builtin.copy:
+    src: /var/lib/samba/private/krb5.conf
+    dest: /etc/krb5.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Assicura che la directory di override di systemd-resolved esista
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Disabilita lo stub listener di systemd-resolved (libera la porta 53)
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/disable-stub.conf
+    content: |
+      # Gestito da Ansible (ruolo domain_controller).
+      # Il DC Samba deve possedere la porta 53: disabilitiamo lo stub
+      # resolver di systemd-resolved che altrimenti la occupa.
+      [Resolve]
+      DNSStubListener=no
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Imposta un DNS forwarder valido nel smb.conf (per i nomi esterni)
+  ansible.builtin.lineinfile:
+    path: /etc/samba/smb.conf
+    regexp: '^\s*dns forwarder\s*='
+    line: "        dns forwarder = {{ domain_controller_dns_forwarder }}"
+    insertafter: '^\[global\]'
+  become: true
+  notify: Riavvia samba-ad-dc
+
+- name: Riavvia systemd-resolved per liberare subito la porta 53
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: restarted
+  become: true
+
+- name: Punta il resolver del DC a sé stesso (per il proprio dominio)
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      # Gestito da Ansible (ruolo domain_controller).
+      # Il DC usa il proprio DNS Samba per risolvere il dominio.
+      nameserver 127.0.0.1
+      search {{ domain_controller_realm | lower }}
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Avvia e abilita il servizio samba-ad-dc
+  ansible.builtin.systemd_service:
+    name: samba-ad-dc
+    state: started
+    enabled: true
+    masked: false
+  become: true
+
+- name: Riavvia samba-ad-dc per riprendere la porta 53 ora libera
+  ansible.builtin.systemd_service:
+    name: samba-ad-dc
+    state: restarted
+  become: true
+
+- name: Crea il gruppo devops (se non esiste)
+  ansible.builtin.command:
+    cmd: samba-tool group add devops
+  register: domain_controller_group_add
+  changed_when: "'added successfully' in domain_controller_group_add.stdout"
+  failed_when:
+    - domain_controller_group_add.rc != 0
+    - "'already exists' not in domain_controller_group_add.stderr"
+  become: true
+
+- name: Aggiungi l'utente di test al gruppo devops
+  ansible.builtin.command:
+    cmd: samba-tool group addmembers devops {{ domain_controller_test_user }}
+  register: domain_controller_group_member
+  changed_when: "'Added members' in domain_controller_group_member.stdout"
+  failed_when:
+    - domain_controller_group_member.rc != 0
+    - "'already exists' not in domain_controller_group_member.stderr"
+  become: true
+  no_log: true

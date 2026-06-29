@@ -31,6 +31,10 @@ all:
         app:
         db:
         # app2: #da decommentare quando avrai della RAM,
+    domain_controllers:
+      hosts:
+        dc-test:
+          ansible_host: 192.168.1.79
     internal:
       hosts:
         lb:

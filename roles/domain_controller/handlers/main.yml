@@ -1,0 +1,12 @@
+---
+- name: Riavvia systemd-resolved
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: restarted
+  become: true
+
+- name: Riavvia samba-ad-dc
+  ansible.builtin.systemd_service:
+    name: samba-ad-dc
+    state: restarted
+  become: true
