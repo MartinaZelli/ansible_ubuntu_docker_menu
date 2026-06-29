@@ -1,0 +1,27 @@
+---
+- name: Disabilita IPv6 via sysctl (persistente al reboot)
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-disable-ipv6.conf
+    content: |
+      # Gestito da Ansible (ruolo base_system).
+      # IPv6 disabilitato: il lab è IPv4 e l'IPv6 del router inietta
+      # DNS spuri che rompono la risoluzione del dominio AD.
+      net.ipv6.conf.all.disable_ipv6 = 1
+      net.ipv6.conf.default.disable_ipv6 = 1
+      net.ipv6.conf.lo.disable_ipv6 = 1
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Applica i parametri sysctl
+    - Riavvia systemd-resolved
+  when: base_system_disable_ipv6
+
+- name: Rimuovi la disabilitazione IPv6 dove non prevista
+  ansible.builtin.file:
+    path: /etc/sysctl.d/99-disable-ipv6.conf
+    state: absent
+  notify:
+    - Applica i parametri sysctl
+    - Riavvia systemd-resolved
+  when: not base_system_disable_ipv6

@@ -1,0 +1,6 @@
+---
+- name: Configurazione di sistema base
+  hosts: ad_clients
+  become: true
+  roles:
+    - base_system

@@ -1,0 +1,5 @@
+---
+# Disabilita IPv6 a livello di sistema. Nel lab la rete è interamente IPv4
+# e l'IPv6 del router (Router Advertisement) inietta DNS spuri che scavalcano
+# il DNS del Domain Controller, rompendo la risoluzione del dominio AD.
+base_system_disable_ipv6: true
