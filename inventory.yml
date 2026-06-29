@@ -16,13 +16,6 @@ all:
       hosts:
         lb:
           ansible_host: 192.168.1.75
-    ldap_servers:
-      hosts:
-        ldap:
-          ansible_host: 192.168.1.76
-    ldap_clients:
-      hosts:
-        lb:
     ad_clients:
       hosts:
         bastion:
