@@ -1,5 +1,0 @@
----
-- name: Riavvia slapd
-  ansible.builtin.service:
-    name: slapd
-    state: restarted

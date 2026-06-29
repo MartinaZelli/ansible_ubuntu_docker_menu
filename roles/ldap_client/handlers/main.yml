@@ -1,6 +1,0 @@
----
-- name: Riavvia sssd
-  ansible.builtin.service:
-    name: sssd
-    state: restarted
-    enabled: true
