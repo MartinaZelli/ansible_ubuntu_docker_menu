@@ -1,4 +1,9 @@
 ---
+# ============================================================
+# FASE 1 — PREPARAZIONE
+# Verifica i prerequisiti e prepara il terreno PRIMA del provision:
+# parametri presenti, pacchetti installati, servizi in conflitto fermati.
+# ============================================================
 - name: Verifica che i parametri del dominio siano definiti
   ansible.builtin.assert:
     that:
@@ -30,6 +35,13 @@
     - winbind
   become: true
 
+# ============================================================
+# FASE 2 — PROVISIONING DEL DOMINIO
+# Il cuore del ruolo. Crea il dominio AD da zero, ma SOLO se non
+# esiste già (pattern controlla-poi-agisci: samba-tool provision
+# non è idempotente, quindi lo guardiamo noi).
+# ============================================================
+
 - name: Verifica se il dominio è già stato provisionato
   ansible.builtin.stat:
     path: /var/lib/samba/private/sam.ldb
@@ -57,6 +69,13 @@
   when: not domain_controller_samdb.stat.exists
   become: true
   no_log: true
+
+# ============================================================
+# FASE 3 — CONFIGURAZIONE RETE E DNS
+# Configura Kerberos e risolve il conflitto sulla porta 53 tra
+# il DNS di Samba e systemd-resolved, imposta il forwarder per i
+# nomi esterni, poi avvia il servizio samba-ad-dc.
+# ============================================================
 
 - name: Copia il krb5.conf generato dal provision in /etc
   ansible.builtin.copy:
@@ -132,6 +151,12 @@
     name: samba-ad-dc
     state: restarted
   become: true
+
+# ============================================================
+# FASE 4 — POPOLAMENTO
+# Crea gli oggetti del dominio (gruppo devops, utente iniziale),
+# in modo idempotente (failed_when intercetta "already exists").
+# ============================================================
 
 - name: Crea il gruppo devops (se non esiste)
   ansible.builtin.command:
