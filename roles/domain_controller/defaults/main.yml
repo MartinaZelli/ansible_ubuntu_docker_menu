@@ -19,7 +19,7 @@ domain_controller_domain: ""
 domain_controller_admin_password: ""
 domain_controller_dns_forwarder: "8.8.8.8"
 
-# Utente di test creato sul DC (per la prova)
+# Utente di test creato sul DC (per la prova non viene utilizzato quando lanciato su DC1 perchè host_vars ha la precedenza!)
 domain_controller_test_user: "testuser"
 domain_controller_test_user_password: "UserPass123!"
 domain_controller_test_user_uid: 10000

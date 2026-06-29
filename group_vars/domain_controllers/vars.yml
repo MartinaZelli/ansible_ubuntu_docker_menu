@@ -1,0 +1,13 @@
+---
+# Parametri comuni a tutti i Domain Controller del dominio reale.
+domain_controller_realm: "AD.LAB.HOME"
+domain_controller_domain: "AD"
+domain_controller_dns_forwarder: "192.168.1.1"
+
+# Ponti ai segreti cifrati (definiti in vault.yml di questo gruppo)
+domain_controller_admin_password: "{{ vault_dc_admin_password }}"
+domain_controller_test_user_password: "{{ vault_mzelli_password }}"
+
+# Utente/gruppo iniziale del dominio
+domain_controller_test_user: "mzelli"
+domain_controller_test_user_uid: 10000
