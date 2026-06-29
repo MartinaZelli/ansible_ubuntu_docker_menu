@@ -44,14 +44,8 @@ lb_config:
   timeout_client: 50000
   timeout_server: 50000
   algorithm: roundrobin
-  force_config: false # imposta a false per evitare la rigenerazione della configurazione ad ogni esecuzione,
-   # se il file esiste non verrà sovrascritto. attenzione! se i parametri all'interno variano questi non verranno applicati!
 
 app_config:
   git_repo: "https://{{ vault_git_token }}@{{ lookup('env', 'GIT_REPO') }}"
   git_version: "{{ lookup('env', 'GIT_VERSION') | default('main', true) }}"
   port: "{{ lookup('env', 'APP_CONFIG_PORT') | default('8000', true) }}"
-
-haproxy_markers:
-  fastapi: "ANSIBLE MANAGED BLOCK: progetto_fastapi"
-  mysql_monitor: "ANSIBLE MANAGED BLOCK: mysql_monitor"
