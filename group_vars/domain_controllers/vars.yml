@@ -11,3 +11,36 @@ domain_controller_test_user_password: "{{ vault_mzelli_password }}"
 # Utente/gruppo iniziale del dominio
 domain_controller_test_user: "mzelli"
 domain_controller_test_user_uid: 10000
+
+# ── Firewall del Domain Controller ────────────────────────────────────────
+# Rete autorizzata ai servizi AD: tutta la LAN, perché il DC serve
+# DNS/Kerberos/LDAP a OGNI nodo del dominio. Single source of truth: per
+# stringere in futuro basta cambiare questa riga.
+firewall_dc_allowed_network: "192.168.1.0/24"
+
+# Porte AD aperte dal ruolo `firewall` (loop su firewall_service_rules).
+# NB: la 22 (SSH) NON è qui — la gestisce il ruolo, solo dal bastion.
+firewall_service_rules:
+  # DNS — il DC è il resolver del dominio (record SRV _kerberos/_ldap)
+  - { port: "53", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  - { port: "53", proto: udp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # Kerberos — rilascio dei ticket (il cuore dell'SSO)
+  - { port: "88", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  - { port: "88", proto: udp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # kpasswd — cambio password Kerberos
+  - { port: "464", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  - { port: "464", proto: udp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # LDAP — query alla directory (+ CLDAP/netlogon su udp)
+  - { port: "389", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  - { port: "389", proto: udp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # LDAPS — LDAP su TLS
+  - { port: "636", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # Global Catalog — ricerche di foresta (GC e GC su TLS)
+  - { port: "3268", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  - { port: "3269", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # SMB — condivisioni SYSVOL/NETLOGON (Group Policy)
+  - { port: "445", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # RPC endpoint mapper — il "centralino" che indirizza ai servizi RPC
+  - { port: "135", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }
+  # RPC dinamico — porte effettive dei servizi (samr, lsarpc, netlogon…)
+  - { port: "49152:65535", proto: tcp, from_ip: "{{ firewall_dc_allowed_network }}" }

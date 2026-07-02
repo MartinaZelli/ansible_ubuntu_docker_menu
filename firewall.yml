@@ -4,3 +4,9 @@
   become: true
   roles:
     - firewall
+
+- name: Configura il firewall sul Domain Controller
+  hosts: domain_controllers
+  become: true
+  roles:
+    - firewall

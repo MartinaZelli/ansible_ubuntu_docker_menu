@@ -6,3 +6,8 @@ firewall_bastion_ip: 192.168.1.78
 firewall_admin_ip: 192.168.1.23
 # Porte SSH
 firewall_ssh_port: 22
+
+# Porte di servizio extra dichiarate dal singolo nodo (in host_vars/group_vars).
+# Default vuoto: un nodo che non dichiara nulla riceve solo la policy base +
+# SSH dal bastion, senza far esplodere il loop del ruolo.
+firewall_service_rules: []
