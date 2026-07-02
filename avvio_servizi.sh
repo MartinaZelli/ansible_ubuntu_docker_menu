@@ -33,6 +33,4 @@ fi
 # 4. Lancio di Ansible.
 #    "$@" passa allo script qualsiasi argomento extra (tag, --check, ecc.)
 #    direttamente ad ansible-playbook.
-ansible-playbook -i inventory.yml \
-  --private-key "$PRIVATE_KEY_PATH" \
-  avvio_servizi.yml "$@"
+ansible-playbook avvio_servizi.yml "$@"

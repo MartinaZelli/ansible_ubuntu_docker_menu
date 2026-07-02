@@ -1,0 +1,25 @@
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Orchestratore di provisioning: da macchine "vuote" (create da Terraform)
+# all'infrastruttura completa e funzionante, in un comando.
+#
+# NON include (esclusioni volute, non dimenticanze):
+#  - dc.yml           -> il ruolo domain_controller NON va rilanciato sul DC
+#                        vivo (e' "in cassetta" per il disaster recovery).
+#  - cleanup_servizi  -> e' il teardown, l'opposto del provisioning.
+#  - reset_host_keys  -> utility locale, non parte della costruzione.
+#
+# L'ORDINE conta: ogni passo dipende dal precedente.
+# ─────────────────────────────────────────────────────────────────────────
+
+- name: "Provisioning 1/4 - Rete IPv4-only + DNS del dominio (prerequisito del join)"
+  ansible.builtin.import_playbook: base.yml
+
+- name: "Provisioning 2/4 - Join al dominio AD + SSO (richiede il DNS del passo 1)"
+  ansible.builtin.import_playbook: ad.yml
+
+- name: "Provisioning 3/4 - Stack applicativo (su nodi gia' membri del dominio)"
+  ansible.builtin.import_playbook: avvio_servizi.yml
+
+- name: "Provisioning 4/4 - Firewall default-deny (per ultimo, a servizi su)"
+  ansible.builtin.import_playbook: firewall.yml

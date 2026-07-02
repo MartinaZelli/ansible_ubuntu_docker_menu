@@ -1,9 +1,14 @@
 ---
 # IP del bastion: l'unica fonte SSH permessa a regime
 firewall_bastion_ip: 192.168.1.78
-# IP di amministrazione (il tuo PC): paracadute TEMPORANEO del Tempo 1.
-# Nel Tempo 2 lo metteremo a "" per rimuovere la regola.
-firewall_admin_ip: 192.168.1.23
+# Paracadute SSH temporaneo: consente l'accesso da un IP amministrativo (il tuo PC)
+# OLTRE al bastion. DISATTIVATO di default ("" => nessun paracadute): a regime si
+# entra SOLO dal bastion.
+# Per attivarlo su una singola esecuzione rischiosa, valorizzalo al lancio:
+#     -e firewall_admin_ip=192.168.1.23
+# e poi, quando non serve piu', rimuovilo con:
+#     -e firewall_admin_ip=192.168.1.23 -e firewall_lockdown=true
+firewall_admin_ip: ""
 # Porte SSH
 firewall_ssh_port: 22
 
