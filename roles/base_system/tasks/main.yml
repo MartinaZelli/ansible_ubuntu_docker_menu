@@ -1,27 +1,36 @@
 ---
-- name: Disabilita IPv6 via sysctl (persistente al reboot)
+- name: Deponi il drop-in netplan che rende eth0 IPv4-only
   ansible.builtin.copy:
-    dest: /etc/sysctl.d/99-disable-ipv6.conf
+    dest: /etc/netplan/99-ipv4-only.yaml
     content: |
       # Gestito da Ansible (ruolo base_system).
-      # IPv6 disabilitato: il lab è IPv4 e l'IPv6 del router inietta
-      # DNS spuri che rompono la risoluzione del dominio AD.
-      net.ipv6.conf.all.disable_ipv6 = 1
-      net.ipv6.conf.default.disable_ipv6 = 1
-      net.ipv6.conf.lo.disable_ipv6 = 1
+      # Disabilita RA e link-local IPv6 su eth0: gli Router Advertisement del
+      # router iniettano DNS IPv6 spuri (rDNS) che scavalcano il DNS del
+      # Domain Controller e rompono la risoluzione di ad.lab.home.
+      network:
+        version: 2
+        ethernets:
+          eth0:
+            accept-ra: false
+            link-local: [ ]
     owner: root
     group: root
-    mode: "0644"
+    mode: "0600"
   notify:
-    - Applica i parametri sysctl
+    - Applica la configurazione netplan
     - Riavvia systemd-resolved
   when: base_system_disable_ipv6
 
-- name: Rimuovi la disabilitazione IPv6 dove non prevista
+- name: Rimuovi il drop-in netplan dove non previsto
+  ansible.builtin.file:
+    path: /etc/netplan/99-ipv4-only.yaml
+    state: absent
+  notify:
+    - Applica la configurazione netplan
+    - Riavvia systemd-resolved
+  when: not base_system_disable_ipv6
+
+- name: Rimuovi il vecchio file sysctl IPv6 (approccio superato dal drop-in netplan)
   ansible.builtin.file:
     path: /etc/sysctl.d/99-disable-ipv6.conf
     state: absent
-  notify:
-    - Applica i parametri sysctl
-    - Riavvia systemd-resolved
-  when: not base_system_disable_ipv6

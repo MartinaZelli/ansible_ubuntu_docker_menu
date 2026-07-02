@@ -1,5 +1,9 @@
 ---
-# Disabilita IPv6 a livello di sistema. Nel lab la rete è interamente IPv4
-# e l'IPv6 del router (Router Advertisement) inietta DNS spuri che scavalcano
-# il DNS del Domain Controller, rompendo la risoluzione del dominio AD.
+# Rende le interfacce dei client IPv4-only tramite un drop-in netplan
+# (accept-ra: false + link-local: []). Motivo: gli IPv6 Router Advertisement
+# del router iniettano DNS IPv6 spuri che scavalcano il DNS del Domain
+# Controller e rompono la risoluzione del dominio AD.
+# NB: il vecchio approccio via sysctl (net.ipv6.conf.*.disable_ipv6) non
+# funzionava, perche' systemd-networkd riaccende l'IPv6 sull'interfaccia
+# (net.ipv6.conf.eth0.disable_ipv6 restava a 0).
 base_system_disable_ipv6: true
