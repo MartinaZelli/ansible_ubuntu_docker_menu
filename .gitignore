@@ -28,3 +28,9 @@ log/
 .vscode/
 .idea/
 Thumbs.db
+
+# --- Assistenti AI (config locale, non parte dell'IaC) ---
+# Istruzioni e configurazione locale di Claude Code
+CLAUDE.md
+CLAUDE.local.md
+.claude/
